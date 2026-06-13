@@ -51,6 +51,27 @@ function nextRenewalDate() {
   return d.toISOString().slice(0, 10)
 }
 
+function applySpotRows(parkings, rows) {
+  if (!rows?.length) return parkings
+  const statusByKey = new Map(rows.map((r) => [`${r.parking_id}:${r.spot_id}`, r.status]))
+  return parkings.map((p) => ({
+    ...p,
+    layout: {
+      ...p.layout,
+      spots: p.layout.spots.map((s) => {
+        const next = statusByKey.get(`${p.id}:${s.id}`)
+        return next ? { ...s, status: next } : s
+      }),
+    },
+  }))
+}
+
+async function fetchSpotStatuses() {
+  const { data, error } = await supabase.from('spot_status').select('parking_id, spot_id, status')
+  if (error) throw error
+  return data || []
+}
+
 export function AppProvider({ children }) {
   const [auth, setAuth] = useState(null) // { role, name, userId, email }
   const [authLoading, setAuthLoading] = useState(true)
@@ -128,6 +149,28 @@ export function AppProvider({ children }) {
     return () => {
       mounted = false
       subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    let timer
+
+    const refreshSpots = async () => {
+      try {
+        const rows = await fetchSpotStatuses()
+        if (mounted) setParkings((prev) => applySpotRows(prev, rows))
+      } catch {
+        // Table may not exist yet — run app/supabase/parking_spots.sql
+      }
+    }
+
+    refreshSpots()
+    timer = window.setInterval(refreshSpots, 5000)
+
+    return () => {
+      mounted = false
+      window.clearInterval(timer)
     }
   }, [])
 
@@ -227,6 +270,23 @@ export function AppProvider({ children }) {
         }
       })
     )
+
+    if (patch.status) {
+      supabase
+        .from('spot_status')
+        .upsert(
+          {
+            parking_id: parkingId,
+            spot_id: spotId,
+            status: patch.status,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'parking_id,spot_id' }
+        )
+        .then(({ error }) => {
+          if (error) console.error('spot_status upsert:', error.message)
+        })
+    }
   }
 
   const requireUser = () => {

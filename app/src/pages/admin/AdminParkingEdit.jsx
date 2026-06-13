@@ -8,7 +8,7 @@ import RealLot from '../../components/RealLot.jsx'
 
 export default function AdminParkingEdit() {
   const { id } = useParams()
-  const { parkings, updateParking, updateSpot, violations, showToast } = useApp()
+  const { parkings, updateParking, updateSpot, clearAllSpots, violations, showToast } = useApp()
   const parking = parkings.find((p) => p.id === id)
   const [editing, setEditing] = useState({})
 
@@ -73,6 +73,13 @@ export default function AdminParkingEdit() {
               <h3 style={{ fontWeight: 600 }}>Lot layout</h3>
               <p className="text-soft" style={{ fontSize: '1.3rem' }}>Tap any spot to cycle status: empty → filled → booked → blocked.</p>
             </div>
+            <button
+              type="button"
+              className="btn btn--dark-outline"
+              onClick={() => clearAllSpots(parking.id)}
+            >
+              Clear all spots
+            </button>
           </div>
           {parking.layout.shape === 'real' ? (
             <RealLot layout={parking.layout} onSpotClick={cycleSpot} />

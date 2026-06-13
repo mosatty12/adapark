@@ -11,12 +11,14 @@ create table if not exists public.spot_status (
 
 alter table public.spot_status enable row level security;
 
+-- Anyone can read spot availability (drivers + admins).
+drop policy if exists "Anyone read spot_status" on public.spot_status;
 drop policy if exists "Authenticated read spot_status" on public.spot_status;
-create policy "Authenticated read spot_status"
+create policy "Anyone read spot_status"
   on public.spot_status for select
-  to authenticated
   using (true);
 
+-- Logged-in users (admin or driver) can insert/update when booking or managing the lot.
 drop policy if exists "Authenticated upsert spot_status" on public.spot_status;
 create policy "Authenticated upsert spot_status"
   on public.spot_status for insert
@@ -30,3 +32,7 @@ create policy "Authenticated update spot_status"
   using (true);
 
 create index if not exists spot_status_parking_idx on public.spot_status(parking_id);
+
+-- Live sync: Supabase → Database → Publications → supabase_realtime → enable spot_status
+-- Or run once (ignore error if already added):
+-- alter publication supabase_realtime add table public.spot_status;

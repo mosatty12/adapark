@@ -66,12 +66,6 @@ function applySpotRows(parkings, rows) {
   }))
 }
 
-async function fetchSpotStatuses() {
-  const { data, error } = await supabase.from('spot_status').select('parking_id, spot_id, status')
-  if (error) throw error
-  return data || []
-}
-
 export function AppProvider({ children }) {
   const [auth, setAuth] = useState(null) // { role, name, userId, email }
   const [authLoading, setAuthLoading] = useState(true)
@@ -153,26 +147,42 @@ export function AppProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    if (authLoading) return
+
     let mounted = true
     let timer
 
     const refreshSpots = async () => {
-      try {
-        const rows = await fetchSpotStatuses()
-        if (mounted) setParkings((prev) => applySpotRows(prev, rows))
-      } catch {
-        // Table may not exist yet — run app/supabase/parking_spots.sql
+      const { data, error } = await supabase.from('spot_status').select('parking_id, spot_id, status')
+      if (error) {
+        if (mounted && error.code === '42P01') {
+          showToast('Run app/supabase/parking_spots.sql in Supabase.', 'error')
+        }
+        return
+      }
+      if (mounted && data?.length) {
+        setParkings((prev) => applySpotRows(prev, data))
       }
     }
 
     refreshSpots()
-    timer = window.setInterval(refreshSpots, 5000)
+    timer = window.setInterval(refreshSpots, 3000)
+
+    const channel = supabase
+      .channel('spot-status-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'spot_status' },
+        () => refreshSpots()
+      )
+      .subscribe()
 
     return () => {
       mounted = false
       window.clearInterval(timer)
+      supabase.removeChannel(channel)
     }
-  }, [])
+  }, [authLoading, auth?.userId])
 
   const signIn = async (email, password, expectedRole) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -257,6 +267,20 @@ export function AppProvider({ children }) {
     setParkings((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)))
   }
 
+  const persistSpotStatus = async (parkingId, spotId, status) => {
+    const { error } = await supabase.from('spot_status').upsert({
+      parking_id: parkingId,
+      spot_id: spotId,
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    if (error) {
+      showToast(`Could not save spot ${spotId}: ${error.message}`, 'error')
+      return false
+    }
+    return true
+  }
+
   const updateSpot = (parkingId, spotId, patch) => {
     setParkings((prev) =>
       prev.map((p) => {
@@ -272,21 +296,41 @@ export function AppProvider({ children }) {
     )
 
     if (patch.status) {
-      supabase
-        .from('spot_status')
-        .upsert(
-          {
-            parking_id: parkingId,
-            spot_id: spotId,
-            status: patch.status,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'parking_id,spot_id' }
-        )
-        .then(({ error }) => {
-          if (error) console.error('spot_status upsert:', error.message)
-        })
+      persistSpotStatus(parkingId, spotId, patch.status)
     }
+  }
+
+  const clearAllSpots = async (parkingId) => {
+    const parking = parkings.find((p) => p.id === parkingId)
+    if (!parking) return
+
+    setParkings((prev) =>
+      prev.map((p) =>
+        p.id !== parkingId
+          ? p
+          : {
+              ...p,
+              layout: {
+                ...p.layout,
+                spots: p.layout.spots.map((s) => ({ ...s, status: 'empty' })),
+              },
+            }
+      )
+    )
+
+    const rows = parking.layout.spots.map((s) => ({
+      parking_id: parkingId,
+      spot_id: s.id,
+      status: 'empty',
+      updated_at: new Date().toISOString(),
+    }))
+
+    const { error } = await supabase.from('spot_status').upsert(rows)
+    if (error) {
+      showToast(`Could not clear spots: ${error.message}`, 'error')
+      return
+    }
+    showToast('All spots cleared — drivers will see this within a few seconds', 'success')
   }
 
   const requireUser = () => {
@@ -603,7 +647,7 @@ export function AppProvider({ children }) {
   const value = useMemo(
     () => ({
       auth, authLoading, signIn, signUp, signOut, saveUserProfile,
-      parkings, setParkings, updateParking, updateSpot,
+      parkings, setParkings, updateParking, updateSpot, clearAllSpots,
       violations, setViolations, issueViolation, updateViolation,
       user, setUser,
       hourlyRate, setHourlyRate,

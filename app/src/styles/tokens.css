@@ -1,0 +1,81 @@
+:root {
+  /* ===== Brand Greens (4-tier system) ===== */
+  --green-starbucks: #006241;   /* H1 / brand */
+  --green-accent:    #00754A;   /* CTA fills */
+  --green-house:     #1E3932;   /* feature bands, footer */
+  --green-uplift:    #2b5148;   /* decorative dark */
+  --green-light:     #d4e9e2;   /* valid tint */
+  --green-light-33:  hsl(160 32% 87% / 0.33);
+
+  /* ===== Gold (Rewards-only) ===== */
+  --gold:          #cba258;
+  --gold-light:    #dfc49d;
+  --gold-lightest: #faf6ee;
+
+  /* ===== Surfaces ===== */
+  --white:        #ffffff;
+  --neutral-cool: #f9f9f9;
+  --neutral-warm: #f2f0eb;
+  --ceramic:      #edebe9;
+  --black:        #000000;
+
+  /* ===== Text ===== */
+  --text-black:       rgba(0, 0, 0, 0.87);
+  --text-black-soft:  rgba(0, 0, 0, 0.58);
+  --text-black-faint: rgba(0, 0, 0, 0.38);
+  --text-white:       rgba(255, 255, 255, 1);
+  --text-white-soft:  rgba(255, 255, 255, 0.70);
+  --rewards-green:    #33433d;
+
+  /* ===== Semantic ===== */
+  --red:        #c82014;
+  --red-tint:   hsl(4 82% 43% / 0.05);
+  --yellow:     #fbbc05;
+
+  /* ===== Hairline / borders ===== */
+  --hairline:   #e7e7e7;
+  --input-border: #d6dbde;
+
+  /* ===== Spacing (1rem = 10px via 62.5%) ===== */
+  --space-1: 0.4rem;
+  --space-2: 0.8rem;
+  --space-3: 1.6rem;
+  --space-4: 2.4rem;
+  --space-5: 3.2rem;
+  --space-6: 4rem;
+  --space-7: 4.8rem;
+  --space-8: 5.6rem;
+  --space-9: 6.4rem;
+
+  --outer-gutter:        1.6rem;
+  --outer-gutter-md:     2.4rem;
+  --outer-gutter-lg:     4.0rem;
+
+  /* ===== Radius ===== */
+  --r-card:    12px;
+  --r-pill:    50px;
+  --r-circle:  50%;
+  --r-input:   4px;
+
+  /* ===== Shadows ===== */
+  --shadow-card: 0 0 0.5px 0 rgba(0,0,0,0.14), 0 1px 1px 0 rgba(0,0,0,0.24);
+  --shadow-card-hover: 0 0 0.5px 0 rgba(0,0,0,0.14), 0 4px 12px 0 rgba(0,0,0,0.10);
+  --shadow-nav:  0 1px 3px rgba(0,0,0,0.10), 0 2px 2px rgba(0,0,0,0.06), 0 0 2px rgba(0,0,0,0.07);
+  --shadow-frap-base:    0 0 6px rgba(0,0,0,0.24);
+  --shadow-frap-ambient: 0 8px 12px rgba(0,0,0,0.14);
+
+  /* ===== Type ===== */
+  --font-sans: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-serif: 'Lora', 'Iowan Old Style', Georgia, serif;
+  --tracking-normal: -0.01em;
+  --tracking-tight:  -0.16px;
+  --tracking-loose:  0.10em;
+  --tracking-looser: 0.15em;
+  --lh-normal: 1.5;
+  --lh-tight:  1.2;
+
+  /* ===== Misc ===== */
+  --button-active-scale: 0.95;
+  --transition-fast: all 0.2s ease;
+  --transition-expander: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}

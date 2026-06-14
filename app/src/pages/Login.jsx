@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
+import { isSupabaseConfigured, supabaseConfigError } from '../supabase.js'
 import { Car, Shield, MapPin, Sparkles } from 'lucide-react'
 
 export default function Login() {
@@ -97,13 +98,13 @@ export default function Login() {
           </h1>
           <p style={{ color: 'var(--text-white-soft)', fontSize: '1.7rem', marginTop: 'var(--space-3)', maxWidth: 460 }}>
             A smart, subscription-friendly parking network for the EMU campus in
-            Gazimağusa. Reserve your spot before you arrive, and let our monitoring
-            system keep things fair.
+            Gazimağusa. Reserve your spot before you arrive, and enjoy fair,
+            transparent parking rules.
           </p>
 
           <div className="login-hero__feats">
             <Feat icon={<MapPin size={16} />} title="Live nearest spots" sub="Real-time vacancy on a map" />
-            <Feat icon={<Shield size={16} />} title="CCTV enforcement" sub="Detected violations, fair penalties" />
+            <Feat icon={<Shield size={16} />} title="Fair penalties" sub="Clear rules, easy disputes" />
             <Feat icon={<Sparkles size={16} />} title="From ₺499.99 / mo" sub="Or pay one-time at ₺50/hour" />
           </div>
         </div>
@@ -162,6 +163,12 @@ export default function Login() {
             </div>
           )}
 
+          {!isSupabaseConfigured && (
+            <p className="login-alert login-alert--error" style={{ marginTop: 'var(--space-4)' }}>
+              {supabaseConfigError}
+            </p>
+          )}
+
           <form onSubmit={submit} style={{ marginTop: 'var(--space-4)' }}>
             {mode === 'signup' && (
               <>
@@ -218,7 +225,11 @@ export default function Login() {
             {error && <p className="login-alert login-alert--error">{error}</p>}
             {info && <p className="login-alert login-alert--info">{info}</p>}
 
-            <button type="submit" className="btn btn--primary btn--block btn--lg" disabled={loading}>
+            <button
+              type="submit"
+              className="btn btn--primary btn--block btn--lg"
+              disabled={loading || !isSupabaseConfigured}
+            >
               {loading
                 ? 'Please wait…'
                 : mode === 'signup'

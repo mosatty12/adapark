@@ -173,7 +173,7 @@ export const PARKINGS = [
     occupancyPct: 72,
     streetCrowdedness: 0.75,
     address: 'Electrical & Electronic Engineering Dept., EMU, Gazimağusa',
-    amenities: ['EV Charging', 'CCTV', 'Covered'],
+    amenities: ['EV Charging', 'Covered'],
   },
   {
     id: 'emu-industrial',
@@ -193,16 +193,16 @@ export const PARKINGS = [
     occupancyPct: 55,
     streetCrowdedness: 0.5,
     address: 'Industrial Engineering Dept., EMU, Gazimağusa',
-    amenities: ['CCTV', 'Open-air'],
+    amenities: ['Open-air'],
   },
 ]
 
 // ====== Penalty / violation events ======
 export const VIOLATIONS = [
-  { id: 'V-1041', plate: 'MGS 312', parkingId: 'emu-electrical', spotId: 'B3', type: 'OVERSTAY',   detectedAt: '2026-05-07 11:22', detectedBy: 'CCTV-01', amount: 175, status: 'pending',  evidenceColor: '#c82014' },
-  { id: 'V-1042', plate: 'MGS 904', parkingId: 'emu-industrial', spotId: 'A1', type: 'WRONG_SPOT', detectedAt: '2026-05-07 12:09', detectedBy: 'CCTV-02', amount: 150, status: 'pending',  evidenceColor: '#1E3932' },
-  { id: 'V-1043', plate: 'GZY 451', parkingId: 'emu-electrical', spotId: 'C2', type: 'NO_BOOKING', detectedAt: '2026-05-07 13:41', detectedBy: 'CCTV-01', amount: 230, status: 'paid',     evidenceColor: '#cba258' },
-  { id: 'V-1044', plate: 'LFK 671', parkingId: 'emu-industrial', spotId: 'D5', type: 'BLOCKING',   detectedAt: '2026-05-07 14:02', detectedBy: 'CCTV-02', amount: 400, status: 'pending',  evidenceColor: '#33433d' },
+  { id: 'V-1041', plate: 'MGS 312', parkingId: 'emu-electrical', spotId: 'B3', type: 'OVERSTAY',   detectedAt: '2026-05-07 11:22', amount: 175, status: 'pending' },
+  { id: 'V-1042', plate: 'MGS 904', parkingId: 'emu-industrial', spotId: 'A1', type: 'WRONG_SPOT', detectedAt: '2026-05-07 12:09', amount: 150, status: 'pending' },
+  { id: 'V-1043', plate: 'GZY 451', parkingId: 'emu-electrical', spotId: 'C2', type: 'NO_BOOKING', detectedAt: '2026-05-07 13:41', amount: 230, status: 'paid' },
+  { id: 'V-1044', plate: 'LFK 671', parkingId: 'emu-industrial', spotId: 'D5', type: 'BLOCKING',   detectedAt: '2026-05-07 14:02', amount: 400, status: 'pending' },
 ]
 
 // ====== Revenue / stats time series (mock) ======

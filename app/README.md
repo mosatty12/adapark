@@ -14,12 +14,34 @@ Visual language inspired by the Starbucks design system (`DESIGN.md`): warm-crea
 ```bash
 cd app
 npm install
-npm run dev      # http://localhost:5173
+cp .env.example .env   # then paste Supabase URL + anon key (see below)
+npm run dev            # http://localhost:5173
 npm run build
 npm run preview
 ```
 
-Login is mocked — any email/password works. Pick the **Driver** tab for the user app or the **Admin** tab for the operator dashboard.
+### Local Supabase setup
+
+Sign-in uses Supabase Auth. Vercel already has these env vars; locally you need them in `app/.env`:
+
+1. Copy `app/.env.example` → `app/.env`
+2. Paste **Project URL** and **anon public** key from [Supabase Dashboard](https://supabase.com/dashboard) → your project → **Settings → API** (same values as in Vercel → Project → Settings → Environment Variables)
+3. Restart `npm run dev` after creating or editing `.env`
+
+In Supabase → **Authentication → URL Configuration**, add for local dev:
+
+| Setting | Value |
+|---------|-------|
+| Site URL | `http://localhost:5173` (or keep production URL if you only test on Vercel) |
+| Redirect URLs | `http://localhost:5173/**` |
+
+Email/password sign-in works without redirect URLs; redirect URLs matter for email confirmation links and OAuth.
+
+**If sign-in fails locally:** the login page shows a red banner when env vars are missing. With wrong keys you’ll see Supabase errors like “Invalid login credentials”. With missing `.env` the app was hitting a placeholder Supabase URL and every sign-in failed silently until the recent hardcoded fallback was removed.
+
+**Cursor Simple Browser:** uses an embedded webview; password sign-in should work once `.env` is set. Sessions are stored in that webview’s storage (separate from Chrome), so you may need to sign in again there even if you’re logged in on adapark.vercel.app.
+
+Use the **Driver** tab for the user app or the **Admin** tab for the operator dashboard.
 
 ---
 

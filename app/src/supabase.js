@@ -1,9 +1,22 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl =
-  import.meta.env.VITE_SUPABASE_URL || 'https://avoppyzsftbbvwfbszat.supabase.co'
-const supabaseKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2b3BweXpzZnRiYnZ3ZmJzemF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzMzNjEsImV4cCI6MjA5Njc0OTM2MX0.jY1a2KyFviTogOsWT7V3ao7ekuDtZlviBuen9n4_xCQ'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey)
+
+export const supabaseConfigError = isSupabaseConfigured
+  ? null
+  : 'Supabase is not configured. Copy app/.env.example to app/.env, paste your project URL and anon key from Supabase → Settings → API, then restart npm run dev.'
+
+if (!isSupabaseConfigured) {
+  console.error('[Adapark]', supabaseConfigError)
+}
+
+export const supabaseProjectRef =
+  supabaseUrl?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? 'unknown'
+
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseKey || 'placeholder'
+)

@@ -19,7 +19,7 @@ export default function Penalties() {
     <div className="page page--wide">
       <h1>Penalties</h1>
       <p className="text-soft" style={{ marginBottom: 'var(--space-4)' }}>
-        Issued automatically by the CCTV-monitoring system or manually by admins.
+        Issued by garage admins when parking rules are broken.
       </p>
 
       <div className="pen-grid">
@@ -39,7 +39,7 @@ export default function Penalties() {
 
         <div className="card">
           <div className="row gap-2"><FileX size={18} /><span className="text-soft" style={{ fontSize: '1.3rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dispute</span></div>
-          <p style={{ marginTop: 6, fontSize: '1.4rem' }}>Think a penalty is wrong? Submit a dispute — we'll review the CCTV footage within 24 hours.</p>
+          <p style={{ marginTop: 6, fontSize: '1.4rem' }}>Think a penalty is wrong? Submit a dispute — we'll review it within 24 hours.</p>
         </div>
       </div>
 

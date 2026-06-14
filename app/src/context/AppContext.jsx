@@ -7,7 +7,7 @@ import {
   PENALTY_RULES,
   formatTL,
 } from '../data/mockData.js'
-import { supabase } from '../supabase.js'
+import { supabase, supabaseProjectRef, isSupabaseConfigured, supabaseConfigError } from '../supabase.js'
 import {
   emptyUser,
   profileToUser,
@@ -185,6 +185,8 @@ export function AppProvider({ children }) {
   }, [authLoading, auth?.userId])
 
   const signIn = async (email, password, expectedRole) => {
+    if (!isSupabaseConfigured) return { error: supabaseConfigError }
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
 
@@ -213,6 +215,8 @@ export function AppProvider({ children }) {
   }
 
   const signUp = async (email, password, name, plate = '') => {
+    if (!isSupabaseConfigured) return { error: supabaseConfigError }
+
     const cleanPlate = plate.trim().toUpperCase()
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -268,14 +272,35 @@ export function AppProvider({ children }) {
   }
 
   const persistSpotStatus = async (parkingId, spotId, status) => {
-    const { error } = await supabase.from('spot_status').upsert({
-      parking_id: parkingId,
-      spot_id: spotId,
-      status,
-      updated_at: new Date().toISOString(),
-    })
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      showToast('Session expired — sign in again to save spot changes.', 'error')
+      return false
+    }
+
+    const { data, error } = await supabase
+      .from('spot_status')
+      .upsert(
+        {
+          parking_id: parkingId,
+          spot_id: spotId,
+          status,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'parking_id,spot_id' }
+      )
+      .select()
+
     if (error) {
-      showToast(`Could not save spot ${spotId}: ${error.message}`, 'error')
+      console.error('[spot_status]', error)
+      showToast(
+        `Save failed (${spotId}): ${error.message} · project ${supabaseProjectRef}`,
+        'error'
+      )
+      return false
+    }
+    if (!data?.length) {
+      showToast(`Save blocked — run parking_spots.sql in Supabase SQL Editor.`, 'error')
       return false
     }
     return true
@@ -325,12 +350,26 @@ export function AppProvider({ children }) {
       updated_at: new Date().toISOString(),
     }))
 
-    const { error } = await supabase.from('spot_status').upsert(rows)
-    if (error) {
-      showToast(`Could not clear spots: ${error.message}`, 'error')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      showToast('Session expired — sign in again as admin.', 'error')
       return
     }
-    showToast('All spots cleared — drivers will see this within a few seconds', 'success')
+
+    const { data, error } = await supabase
+      .from('spot_status')
+      .upsert(rows, { onConflict: 'parking_id,spot_id' })
+      .select()
+    if (error) {
+      console.error('[spot_status]', error)
+      showToast(`Could not clear spots: ${error.message} · project ${supabaseProjectRef}`, 'error')
+      return
+    }
+    if (!data?.length) {
+      showToast('Save blocked — re-run app/supabase/parking_spots.sql in Supabase.', 'error')
+      return
+    }
+    showToast(`Cleared ${data.length} spots — drivers will update in a few seconds`, 'success')
   }
 
   const requireUser = () => {

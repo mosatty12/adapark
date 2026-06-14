@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext.jsx'
-import { ChevronLeft, MapPin, Star, Car, Zap, Shield, Camera, Clock, AlertTriangle, CheckCircle2, X, Navigation } from 'lucide-react'
+import { ChevronLeft, MapPin, Star, Car, Zap, Shield, CheckCircle2, X, Navigation } from 'lucide-react'
 import { formatTL } from '../../data/mockData.js'
 import VirtualLot from '../../components/VirtualLot.jsx'
 import RealLot from '../../components/RealLot.jsx'
@@ -10,7 +10,6 @@ import PaymentModal from '../../components/PaymentModal.jsx'
 
 export default function ParkingDetail() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const { parkings, user, tiers } = useApp()
   const parking = parkings.find((p) => p.id === id)
   const [selectedSpot, setSelectedSpot] = useState(null)
@@ -178,18 +177,6 @@ export default function ParkingDetail() {
             )}
           </div>
 
-          <div className="card" style={{ background: 'var(--green-house)', color: '#fff' }}>
-            <div className="row gap-2" style={{ alignItems: 'flex-start' }}>
-              <Camera size={18} color="var(--gold)" />
-              <div>
-                <div style={{ fontWeight: 700 }}>CCTV-monitored garage</div>
-                <div style={{ color: 'var(--text-white-soft)', fontSize: '1.3rem', marginTop: 4 }}>
-                  Camera monitoring issues automatic penalties for overstay or parking outside your assigned spot.
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div className="card">
             <h3 style={{ fontSize: '1.6rem' }}>Why book ahead?</h3>
             <ul style={{ paddingLeft: 18, margin: '8px 0 0', fontSize: '1.4rem', color: 'var(--text-black)', lineHeight: 1.7 }}>
@@ -220,7 +207,6 @@ export default function ParkingDetail() {
 function iconFor(a) {
   if (a === 'EV Charging') return <Zap size={12} />
   if (a === 'Drone Patrol') return <Shield size={12} />
-  if (a === 'CCTV') return <Camera size={12} />
   if (a === 'Valet') return <Car size={12} />
   return <CheckCircle2 size={12} />
 }

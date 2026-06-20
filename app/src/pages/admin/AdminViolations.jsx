@@ -124,6 +124,7 @@ export default function AdminViolations() {
           <table className="data-table">
             <thead>
               <tr>
+                <th>Evidence</th>
                 <th>ID</th>
                 <th>Plate</th>
                 <th>Detected time</th>
@@ -137,6 +138,19 @@ export default function AdminViolations() {
                 const isRegistered = registeredPlates.has(normPlate(v.plate_number))
                 return (
                   <tr key={v.id}>
+                    <td>
+                      {v.image_url ? (
+                        <a href={v.image_url} target="_blank" rel="noreferrer">
+                          <img
+                            src={v.image_url}
+                            alt={`Evidence for ${v.plate_number}`}
+                            style={{ width: 84, height: 56, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+                          />
+                        </a>
+                      ) : (
+                        <span className="text-soft">—</span>
+                      )}
+                    </td>
                     <td className="mono nowrap">{v.id}</td>
                     <td className="mono nowrap"><b>{v.plate_number}</b></td>
                     <td className="text-soft nowrap">{v.detected_time}</td>
@@ -154,7 +168,7 @@ export default function AdminViolations() {
               })}
               {vehicles.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-soft" style={{ textAlign: 'center', padding: 24 }}>
+                  <td colSpan={7} className="text-soft" style={{ textAlign: 'center', padding: 24 }}>
                     No detections yet. Run the Colab script to populate the vehicles feed.
                   </td>
                 </tr>

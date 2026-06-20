@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CreditCard, Sparkles, Crown, X, Wallet, CheckCircle2, Lock, Apple, Banknote } from 'lucide-react'
 import { useApp } from '../context/AppContext.jsx'
-import { formatTL } from '../data/mockData.js'
+import { formatTL } from '../lib/formatters.js'
 
 export default function PaymentModal({ parking, spot, hours, rate, onClose, onSuccess }) {
   const { user, tiers, bookSpot, showToast } = useApp()

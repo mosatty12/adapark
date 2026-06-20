@@ -1,3 +1,11 @@
+export function isPlateMissing(userOrProfile) {
+  const plate =
+    userOrProfile?.vehicle?.plate ??
+    userOrProfile?.plate ??
+    ''
+  return !String(plate).trim()
+}
+
 export function emptyUser() {
   return {
     name: '',
@@ -39,12 +47,13 @@ export function profileToUser(profile) {
 }
 
 export function userToProfilePatch(user) {
+  const plate = user.vehicle?.plate?.trim().toUpperCase()
   return {
     name: user.name,
     phone: user.phone,
-    plate: user.vehicle?.plate || null,
-    vehicle_make: user.vehicle?.make || null,
-    vehicle_color: user.vehicle?.color || null,
+    plate: plate || null,
+    vehicle_make: user.vehicle?.make?.trim() || null,
+    vehicle_color: user.vehicle?.color?.trim() || null,
   }
 }
 
@@ -83,5 +92,19 @@ export function transactionFromRow(row) {
     label: row.label,
     delta: Number(row.delta) || 0,
     date: (row.created_at || '').slice(0, 10),
+  }
+}
+
+export function adminViolationFromRow(row) {
+  return {
+    id: row.id,
+    plate: row.profiles?.plate || '—',
+    parkingId: row.parking_id,
+    spotId: null,
+    type: row.type,
+    detectedAt: (row.created_at || row.date || '').slice(0, 16).replace('T', ' '),
+    amount: Number(row.amount) || 0,
+    status: row.status,
+    userId: row.user_id,
   }
 }

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext.jsx'
 import { ChevronLeft, Save, AlertOctagon, Wand2 } from 'lucide-react'
-import { formatTL, formatTLShort } from '../../data/mockData.js'
+import { formatTL } from '../../lib/formatters.js'
+import { spotCounts, effectiveCrowdLevel } from '../../lib/parkingStats.js'
 import VirtualLot from '../../components/VirtualLot.jsx'
 import RealLot from '../../components/RealLot.jsx'
 
@@ -21,7 +22,8 @@ export default function AdminParkingEdit() {
   }
 
   const localViolations = violations.filter((v) => v.parkingId === parking.id)
-  const empty = parking.layout.spots.filter((s) => s.status === 'empty').length
+  const { vacant, pct: occPct } = spotCounts(parking)
+  const crowd = effectiveCrowdLevel(parking)
 
   const cycleSpot = (spot) => {
     const next = spot.status === 'empty' ? 'filled' : spot.status === 'filled' ? 'booked' : spot.status === 'booked' ? 'blocked' : 'empty'
@@ -60,10 +62,9 @@ export default function AdminParkingEdit() {
       {/* Stats */}
       <div className="kpi-grid" style={{ marginTop: 'var(--space-4)' }}>
         <Mini label="Total spots" value={parking.layout.spots.length} />
-        <Mini label="Vacant" value={empty} tone="var(--green-accent)" />
-        <Mini label="Occupancy" value={`${parking.occupancyPct}%`} />
-        <Mini label="Street load" value={`${Math.round(parking.streetCrowdedness * 100)}%`} tone={parking.streetCrowdedness > 0.7 ? 'var(--red)' : 'var(--green-starbucks)'} />
-        <Mini label="Monthly revenue" value={formatTLShort(parking.revenueMonthTL)} />
+        <Mini label="Vacant" value={vacant} tone="var(--green-accent)" />
+        <Mini label="Occupancy" value={`${occPct}%`} />
+        <Mini label="Crowd" value={crowd} tone={occPct > 70 ? 'var(--red)' : 'var(--green-starbucks)'} />
       </div>
 
       <div className="ov-grid" style={{ marginTop: 'var(--space-4)' }}>
@@ -126,7 +127,8 @@ export default function AdminParkingEdit() {
             {localViolations.map((v) => (
               <div key={v.id} className="row between" style={{ padding: '8px 0', borderTop: '1px solid var(--hairline)' }}>
                 <div>
-                  <b>{v.plate}</b> <span className="text-soft" style={{ fontSize: '1.2rem' }}>· spot {v.spotId}</span>
+                  <b>{v.plate}</b>
+                  {v.spotId && <span className="text-soft" style={{ fontSize: '1.2rem' }}> · spot {v.spotId}</span>}
                   <div className="text-soft" style={{ fontSize: '1.3rem' }}>{v.type.replace('_', ' ').toLowerCase()} · {v.detectedAt}</div>
                 </div>
                 <span className={`pill ${v.status === 'paid' ? 'pill--ok' : v.status === 'disputed' ? 'pill--warn' : 'pill--bad'}`}>{v.status}</span>

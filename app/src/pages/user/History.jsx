@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useApp } from '../../context/AppContext.jsx'
 import { Clock, MapPin } from 'lucide-react'
-import { formatTL } from '../../data/mockData.js'
+import { formatTL } from '../../lib/formatters.js'
 
 export default function History() {
   const { user, parkings, cancelBooking } = useApp()

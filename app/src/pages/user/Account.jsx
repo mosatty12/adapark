@@ -1,11 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext.jsx'
-import { Car, Mail, User } from 'lucide-react'
+import { isPlateMissing } from '../../lib/profileUtils.js'
+import { Car, Mail, User, AlertCircle } from 'lucide-react'
 
 export default function Account() {
   const { user, setUser, tiers, showToast, saveUserProfile } = useApp()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const plateInputRef = useRef(null)
+  const startedWithoutPlate = useRef(isPlateMissing(user))
   const sub = tiers.find((t) => t.id === user.subscriptionId)
   const [saving, setSaving] = useState(false)
+  const plateMissing = isPlateMissing(user)
+  const setupPlate = searchParams.get('setup') === 'plate' || plateMissing
+
+  useEffect(() => {
+    if (setupPlate && plateInputRef.current) {
+      plateInputRef.current.focus()
+    }
+  }, [setupPlate])
 
   const update = (path, value) => {
     setUser((u) => {
@@ -19,6 +33,12 @@ export default function Account() {
   }
 
   const save = async () => {
+    if (isPlateMissing(user)) {
+      showToast('Please enter your license plate.', 'error')
+      plateInputRef.current?.focus()
+      return
+    }
+    const completingSetup = startedWithoutPlate.current
     setSaving(true)
     const { error } = await saveUserProfile()
     setSaving(false)
@@ -27,11 +47,27 @@ export default function Account() {
       return
     }
     showToast('Account saved', 'success')
+    if (completingSetup) {
+      navigate('/app', { replace: true })
+    }
   }
 
   return (
     <div className="page page--tight">
       <h1>Your account</h1>
+
+      {setupPlate && (
+        <div className="account-setup-banner" role="alert">
+          <AlertCircle size={18} />
+          <div>
+            <strong>Complete your profile</strong>
+            <p>
+              Add your license plate so we can match your vehicle to bookings and penalties.
+              Other app features stay locked until this is saved.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginTop: 'var(--space-4)' }}>
         <h3 style={{ fontWeight: 600, marginBottom: 'var(--space-3)' }}><User size={16} style={{ verticalAlign: 'middle' }} /> Personal</h3>
@@ -55,8 +91,16 @@ export default function Account() {
       <div className="card" style={{ marginTop: 'var(--space-3)' }}>
         <h3 style={{ fontWeight: 600, marginBottom: 'var(--space-3)' }}><Car size={16} style={{ verticalAlign: 'middle' }} /> Vehicle</h3>
         <label className="field">
-          <input className="field__input" placeholder=" " value={user.vehicle.plate} onChange={(e) => update('vehicle.plate', e.target.value)} />
-          <span className="field__label">License plate</span>
+          <input
+            ref={plateInputRef}
+            className="field__input"
+            placeholder=" "
+            value={user.vehicle.plate}
+            onChange={(e) => update('vehicle.plate', e.target.value.toUpperCase())}
+            required
+            aria-required="true"
+          />
+          <span className="field__label">License plate{plateMissing ? ' (required)' : ''}</span>
         </label>
         <label className="field">
           <input className="field__input" placeholder=" " value={user.vehicle.make} onChange={(e) => update('vehicle.make', e.target.value)} />
@@ -84,8 +128,32 @@ export default function Account() {
         onClick={save}
         disabled={saving}
       >
-        {saving ? 'Saving…' : 'Save changes'}
+        {saving ? 'Saving…' : plateMissing ? 'Save plate & continue' : 'Save changes'}
       </button>
+
+      <style>{`
+        .account-setup-banner {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          margin-top: var(--space-4);
+          padding: 14px 16px;
+          border-radius: 12px;
+          background: #fff8e6;
+          border: 1px solid #f5d98a;
+          color: #7a5b00;
+        }
+        .account-setup-banner strong {
+          display: block;
+          font-size: 1.4rem;
+          margin-bottom: 4px;
+        }
+        .account-setup-banner p {
+          margin: 0;
+          font-size: 1.3rem;
+          line-height: 1.45;
+        }
+      `}</style>
     </div>
   )
 }

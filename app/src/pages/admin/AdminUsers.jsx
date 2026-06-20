@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Search, Crown, Star, Ban, ShieldCheck, RefreshCw } from 'lucide-react'
-import { formatTL, SUBSCRIPTION_TIERS } from '../../data/mockData.js'
+import { formatTL } from '../../lib/formatters.js'
+import { SUBSCRIPTION_TIERS } from '../../data/parkingConfig.js'
 import { supabase } from '../../supabase.js'
 import { useApp } from '../../context/AppContext.jsx'
 

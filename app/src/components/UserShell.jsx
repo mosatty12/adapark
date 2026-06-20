@@ -1,10 +1,19 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
+import { isPlateMissing } from '../lib/profileUtils.js'
 import { Map, CreditCard, Wallet as WalletIcon, AlertTriangle, History, User as UserIcon, LogOut } from 'lucide-react'
 
 export default function UserShell() {
   const { auth, signOut, user } = useApp()
   const navigate = useNavigate()
+  const location = useLocation()
+  const plateMissing = isPlateMissing(user)
+  const onAccountPage = location.pathname.startsWith('/app/account')
+
+  if (plateMissing && !onAccountPage) {
+    return <Navigate to="/app/account?setup=plate" replace />
+  }
+
   const logout = async () => { await signOut(); navigate('/login') }
   return (
     <div className="app-shell">
@@ -46,6 +55,7 @@ export const topnavCss = `
   position: sticky; top: 0; z-index: 50;
   background: #fff;
   box-shadow: var(--shadow-nav);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 .topnav__inner {
   max-width: 1440px;
@@ -114,6 +124,20 @@ export const topnavCss = `
 @media (max-width: 640px) {
   .topnav__btn-label { display: none; }
   .topnav__right .btn { padding: 0; width: 36px; height: 36px; border-radius: 50%; justify-content: center; }
-  .topnav__inner { gap: var(--space-2); padding: 0 var(--space-3); }
+  .topnav__inner {
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+  .topnav__brand { font-size: 1.5rem; }
+  .topnav__links {
+    order: 3;
+    flex: 1 1 100%;
+    margin-left: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .topnav__link { padding: 6px 10px; font-size: 1.25rem; }
 }
 `

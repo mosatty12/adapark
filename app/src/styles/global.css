@@ -7,6 +7,7 @@
 html { font-size: 62.5%; } /* 1rem = 10px */
 
 html, body, #root { height: 100%; }
+html, body, #root { overflow-x: clip; }
 
 body {
   margin: 0;
@@ -18,6 +19,7 @@ body {
   background: var(--neutral-warm);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
 button { font-family: inherit; cursor: pointer; }
@@ -189,6 +191,19 @@ p  { margin: 0; }
 .data-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  margin-inline: calc(-1 * var(--space-3));
+  padding-inline: var(--space-3);
+}
+@media (min-width: 641px) {
+  .data-table-wrap {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+@media (max-width: 640px) {
+  .data-table { font-size: 1.25rem; min-width: 520px; }
+  .data-table th,
+  .data-table td { padding: 10px; }
 }
 
 /* ===== Layout helpers ===== */
@@ -219,13 +234,23 @@ p  { margin: 0; }
   display: flex;
   flex-direction: column;
   background: var(--neutral-warm);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
+.app-shell > main { min-width: 0; }
 .page {
   flex: 1;
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
   padding: var(--space-5) var(--outer-gutter);
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .page { padding: var(--space-4) var(--space-3); }
+  h1 { font-size: 2.2rem; }
+  h2 { font-size: 2rem; }
+  .row.between { flex-wrap: wrap; gap: var(--space-3); }
 }
 @media (min-width: 768px) {
   .page { padding: var(--space-6) var(--outer-gutter-md); }
@@ -273,8 +298,8 @@ p  { margin: 0; }
 /* ===== Frap floating button ===== */
 .frap {
   position: fixed;
-  right: calc(var(--outer-gutter) - 0.8rem);
-  bottom: calc(var(--outer-gutter) - 0.8rem);
+  right: max(calc(var(--outer-gutter) - 0.8rem), env(safe-area-inset-right, 0px));
+  bottom: max(calc(var(--outer-gutter) - 0.8rem), env(safe-area-inset-bottom, 0px));
   width: 5.6rem;
   height: 5.6rem;
   border-radius: var(--r-circle);
@@ -304,7 +329,7 @@ p  { margin: 0; }
   background: rgba(0,0,0,0.45);
   display: flex; align-items: center; justify-content: center;
   z-index: 80;
-  padding: var(--space-3);
+  padding: max(var(--space-3), env(safe-area-inset-top, 0px)) max(var(--space-3), env(safe-area-inset-right, 0px)) max(var(--space-3), env(safe-area-inset-bottom, 0px)) max(var(--space-3), env(safe-area-inset-left, 0px));
 }
 .modal {
   background: var(--white);

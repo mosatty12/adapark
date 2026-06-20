@@ -1,86 +1,144 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../../context/AppContext.jsx'
 import { TrendingUp, TrendingDown, Activity, AlertOctagon, Users, ArrowUpRight, Sparkles } from 'lucide-react'
 import { BarChart, LineChart, Donut } from '../../components/Charts.jsx'
-import { REVENUE_LAST_7, HOURLY_OCCUPANCY, formatTL, formatTLShort } from '../../data/mockData.js'
+import { formatTLShort } from '../../lib/formatters.js'
+import { spotCounts } from '../../lib/parkingStats.js'
+import { supabase } from '../../supabase.js'
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function last7DayLabels() {
+  const labels = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    labels.push(DAY_LABELS[d.getDay()])
+  }
+  return labels
+}
+
+function buildRevenueSeries(transactions) {
+  const labels = last7DayLabels()
+  const buckets = labels.map((label) => ({ label, value: 0 }))
+  const now = new Date()
+  const start = new Date(now)
+  start.setDate(start.getDate() - 6)
+  start.setHours(0, 0, 0, 0)
+
+  for (const txn of transactions) {
+    if (!txn.created_at || txn.kind !== 'park') continue
+    const when = new Date(txn.created_at)
+    if (when < start) continue
+    const dayIndex = Math.floor((when - start) / (24 * 60 * 60 * 1000))
+    if (dayIndex >= 0 && dayIndex < buckets.length) {
+      buckets[dayIndex].value += Math.abs(Number(txn.delta) || 0)
+    }
+  }
+  return buckets
+}
 
 export default function AdminOverview() {
-  const { parkings, violations, updateParking, hourlyRate } = useApp()
+  const { parkings, violations, updateParking } = useApp()
+  const [transactions, setTransactions] = useState([])
 
-  const revenueWeek = REVENUE_LAST_7.reduce((s, d) => s + d.total, 0)
+  useEffect(() => {
+    let mounted = true
+    supabase
+      .from('transactions')
+      .select('kind, delta, created_at')
+      .order('created_at', { ascending: false })
+      .limit(500)
+      .then(({ data, error }) => {
+        if (!mounted || error) return
+        setTransactions(data || [])
+      })
+    return () => { mounted = false }
+  }, [])
+
+  const revenueLast7 = useMemo(() => buildRevenueSeries(transactions), [transactions])
+  const revenueWeek = revenueLast7.reduce((s, d) => s + d.value, 0)
+
   const totalSpots = parkings.reduce((s, p) => s + p.layout.spots.length, 0)
   const occupiedSpots = parkings.reduce((s, p) => s + p.layout.spots.filter((sp) => sp.status !== 'empty').length, 0)
-  const pendingViolations = violations.filter((v) => v.status === 'pending').length
-  const monthlyRev = parkings.reduce((s, p) => s + p.revenueMonthTL, 0)
+  const networkOccPct = totalSpots ? Math.round((occupiedSpots / totalSpots) * 100) : 0
+  const hourlyOccupancy = useMemo(() => Array.from({ length: 24 }, () => networkOccPct), [networkOccPct])
 
-  const ranked = [...parkings].sort((a, b) => b.revenueMonthTL - a.revenueMonthTL)
+  const unpaidViolations = violations.filter((v) => v.status === 'unpaid').length
   const suggestions = parkings.filter((p) => p.suggestedFeeChange !== 0)
+  const ranked = useMemo(
+    () => [...parkings].sort((a, b) => spotCounts(b).pct - spotCounts(a).pct),
+    [parkings]
+  )
 
   return (
     <div className="page page--wide">
       <div className="row between" style={{ alignItems: 'flex-end', marginBottom: 'var(--space-5)' }}>
         <div>
           <h1>Operations overview</h1>
-          <p className="text-soft">Live network status across all garages and violations.</p>
+          <p className="text-soft">Live network status across all garages and penalties.</p>
         </div>
         <div className="row gap-2">
           <Link to="/admin/parkings" className="btn btn--primary">Manage parkings</Link>
         </div>
       </div>
 
-      {/* KPI strip */}
       <div className="kpi-grid">
-        <KpiCard icon={<Activity size={18} />} label="Monthly revenue" value={formatTLShort(monthlyRev)} delta="+8.2%" deltaUp />
-        <KpiCard icon={<TrendingUp size={18} />} label="This week" value={formatTLShort(revenueWeek)} delta="+12.4%" deltaUp />
-        <KpiCard icon={<Users size={18} />} label="Network occupancy" value={`${Math.round((occupiedSpots/totalSpots)*100)}%`} delta="3.1%" deltaUp />
-        <KpiCard icon={<AlertOctagon size={18} />} label="Pending violations" value={pendingViolations} sub="requires review" warn />
+        <KpiCard icon={<Activity size={18} />} label="Parking revenue (7d)" value={formatTLShort(revenueWeek)} sub="from wallet transactions" />
+        <KpiCard icon={<TrendingUp size={18} />} label="Network occupancy" value={`${networkOccPct}%`} sub={`${occupiedSpots} / ${totalSpots} spots`} />
+        <KpiCard icon={<Users size={18} />} label="Active garages" value={parkings.length} sub="EMU campus" />
+        <KpiCard icon={<AlertOctagon size={18} />} label="Unpaid penalties" value={unpaidViolations} sub="requires review" warn />
       </div>
 
-      {/* Charts */}
       <div className="ov-grid">
         <div className="card">
           <div className="row between" style={{ marginBottom: 'var(--space-3)' }}>
             <div>
               <h3 style={{ fontWeight: 600 }}>Revenue · last 7 days</h3>
-              <p className="text-soft" style={{ fontSize: '1.3rem' }}>Across all garages, all payment types</p>
+              <p className="text-soft" style={{ fontSize: '1.3rem' }}>Parking payments recorded in Supabase</p>
             </div>
-            <span className="pill pill--ok"><TrendingUp size={12} /> +12.4%</span>
           </div>
-          <BarChart
-            data={REVENUE_LAST_7.map((d) => ({ label: d.day, value: d.total }))}
-            color="var(--green-accent)"
-            height={200}
-            formatY={formatTLShort}
-          />
+          {revenueWeek > 0 ? (
+            <BarChart
+              data={revenueLast7}
+              color="var(--green-accent)"
+              height={200}
+              formatY={formatTLShort}
+            />
+          ) : (
+            <p className="text-soft" style={{ padding: 'var(--space-4) 0', textAlign: 'center' }}>
+              No parking revenue recorded yet.
+            </p>
+          )}
         </div>
 
         <div className="card">
           <div className="row between" style={{ marginBottom: 'var(--space-3)' }}>
             <div>
-              <h3 style={{ fontWeight: 600 }}>Hourly occupancy · today</h3>
-              <p className="text-soft" style={{ fontSize: '1.3rem' }}>Network-wide, % of spots occupied</p>
+              <h3 style={{ fontWeight: 600 }}>Live occupancy</h3>
+              <p className="text-soft" style={{ fontSize: '1.3rem' }}>Current network-wide spot usage</p>
             </div>
-            <span className="pill pill--info">Peak {Math.max(...HOURLY_OCCUPANCY)}%</span>
+            <span className="pill pill--info">{networkOccPct}% now</span>
           </div>
-          <LineChart data={HOURLY_OCCUPANCY} height={200} />
+          <LineChart data={hourlyOccupancy} height={200} />
           <div className="row between text-soft" style={{ fontSize: '1.2rem', marginTop: 4 }}>
             <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:59</span>
           </div>
         </div>
       </div>
 
-      {/* Top revenue parkings */}
       <div className="ov-grid">
         <div className="card">
           <div className="row between" style={{ marginBottom: 'var(--space-3)' }}>
             <div>
-              <h3 style={{ fontWeight: 600 }}>Top revenue garages this month</h3>
+              <h3 style={{ fontWeight: 600 }}>Garages by occupancy</h3>
               <p className="text-soft" style={{ fontSize: '1.3rem' }}>Click to manage</p>
             </div>
           </div>
           <div className="stack gap-2">
             {ranked.map((p, i) => {
-              const pct = (p.revenueMonthTL / ranked[0].revenueMonthTL) * 100
+              const { pct } = spotCounts(p)
               return (
                 <Link key={p.id} to={`/admin/parkings/${p.id}`} className="rev-row">
                   <div style={{ width: 22, color: 'var(--text-black-soft)', fontWeight: 700, fontSize: '1.3rem' }}>#{i + 1}</div>
@@ -88,7 +146,7 @@ export default function AdminOverview() {
                     <div style={{ fontWeight: 700 }}>{p.name}</div>
                     <div className="rev-row__bar"><div style={{ width: `${pct}%` }} /></div>
                   </div>
-                  <div className="mono" style={{ fontWeight: 700 }}>{formatTLShort(p.revenueMonthTL)}</div>
+                  <div className="mono" style={{ fontWeight: 700 }}>{pct}%</div>
                   <ArrowUpRight size={14} color="var(--text-black-soft)" />
                 </Link>
               )
@@ -107,12 +165,11 @@ export default function AdminOverview() {
         </div>
       </div>
 
-      {/* Smart suggestions */}
       <div className="card" style={{ marginTop: 'var(--space-4)' }}>
         <div className="row between" style={{ marginBottom: 'var(--space-3)' }}>
           <div>
             <h3 style={{ fontWeight: 600 }}><Sparkles size={16} style={{ verticalAlign: 'middle', color: 'var(--gold)' }} /> Pricing suggestions</h3>
-            <p className="text-soft" style={{ fontSize: '1.3rem' }}>Based on local crowdedness and spot scarcity. One-click apply.</p>
+            <p className="text-soft" style={{ fontSize: '1.3rem' }}>Admin-set fee adjustments. One-click apply.</p>
           </div>
           <Link to="/admin/pricing" className="btn btn--outline">All pricing rules</Link>
         </div>
@@ -120,6 +177,7 @@ export default function AdminOverview() {
           {suggestions.length === 0 && <div className="text-soft">No suggestions right now — everything looks balanced.</div>}
           {suggestions.map((p) => {
             const pct = p.suggestedFeeChange
+            const { pct: occPct } = spotCounts(p)
             const newRate = Math.round(p.hourlyOverride * (1 + pct / 100))
             return (
               <div key={p.id} className="suggest">
@@ -133,7 +191,7 @@ export default function AdminOverview() {
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '1.5rem', marginTop: 6 }}>{p.name}</div>
                   <p className="text-soft" style={{ fontSize: '1.3rem', marginTop: 4 }}>
-                    Street load is at <b>{Math.round(p.streetCrowdedness * 100)}%</b>, occupancy <b>{p.occupancyPct}%</b>.
+                    Current occupancy <b>{occPct}%</b>.
                     Suggest changing rate from <b>₺{p.hourlyOverride}/hr</b> to <b style={{ color: pct > 0 ? 'var(--green-starbucks)' : 'var(--green-accent)' }}>₺{newRate}/hr</b>.
                   </p>
                 </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import { Plus, ArrowDownRight, ArrowUpRight, Wallet as WalletIcon, CreditCard } from 'lucide-react'
-import { formatTL } from '../../data/mockData.js'
+import { formatTL } from '../../lib/formatters.js'
 
 export default function Wallet() {
   const { user, topUp } = useApp()

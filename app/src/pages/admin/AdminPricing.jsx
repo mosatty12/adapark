@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import { Save, RefreshCw, Tag, Crown } from 'lucide-react'
-import { formatTL } from '../../data/mockData.js'
+import { formatTL } from '../../lib/formatters.js'
 
 export default function AdminPricing() {
   const { tiers, updateTier, parkings, updateParking, hourlyRate, setHourlyRate, penaltyRules, updatePenaltyRule, showToast } = useApp()

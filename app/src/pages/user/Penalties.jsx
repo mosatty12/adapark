@@ -1,6 +1,6 @@
 import { useApp } from '../../context/AppContext.jsx'
 import { AlertTriangle, ShieldCheck, FileX } from 'lucide-react'
-import { formatTL } from '../../data/mockData.js'
+import { formatTL } from '../../lib/formatters.js'
 
 const TYPE_LABEL = {
   OVERSTAY: 'Overstay (over booked window)',

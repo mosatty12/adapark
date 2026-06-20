@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useApp } from '../../context/AppContext.jsx'
 import { Pencil, MapPin, TrendingUp, TrendingDown, Plus } from 'lucide-react'
-import { formatTLShort } from '../../data/mockData.js'
+import { spotCounts, effectiveCrowdLevel } from '../../lib/parkingStats.js'
 
 export default function AdminParkings() {
   const { parkings } = useApp()
@@ -27,23 +27,21 @@ export default function AdminParkings() {
                 <th className="nowrap">Rate</th>
                 <th>Crowd</th>
                 <th className="nowrap">Suggestion</th>
-                <th className="num nowrap">Revenue (mo)</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {parkings.map((p) => {
-                const empty = p.layout.spots.filter((s) => s.status === 'empty').length
-                const total = p.layout.spots.length
-                const occ = Math.round(((total - empty) / total) * 100)
+                const { total, pct } = spotCounts(p)
+                const crowd = effectiveCrowdLevel(p)
                 return (
                   <tr key={p.id}>
                     <td><b>{p.name}</b></td>
                     <td className="text-soft nowrap"><MapPin size={12} style={{ verticalAlign: 'middle' }} /> {p.area}</td>
                     <td className="num nowrap">{total}</td>
-                    <td className="nowrap"><span className="pill pill--ghost">{occ}%</span></td>
+                    <td className="nowrap"><span className="pill pill--ghost">{pct}%</span></td>
                     <td className="mono nowrap">₺{p.hourlyOverride}/hr</td>
-                    <td><span className={`pill ${crowdCls(p.crowdLevel)}`}>{p.crowdLevel}</span></td>
+                    <td><span className={`pill ${crowdCls(crowd)}`}>{crowd}</span></td>
                     <td className="nowrap">
                       {p.suggestedFeeChange === 0 ? (
                         <span className="text-soft">—</span>
@@ -54,7 +52,6 @@ export default function AdminParkings() {
                         </span>
                       )}
                     </td>
-                    <td className="mono num nowrap"><b>{formatTLShort(p.revenueMonthTL)}</b></td>
                     <td className="nowrap"><Link to={`/admin/parkings/${p.id}`} className="btn btn--outline"><Pencil size={12}/> Edit</Link></td>
                   </tr>
                 )

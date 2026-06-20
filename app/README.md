@@ -1,8 +1,8 @@
-# Adapark — Smart Parking System (Frontend Mock)
+# Adapark — Smart Parking System
 
-> **Adapark** — _ada_ ("island" in Turkish) + _park_. A network for the whole island: Lefkoşa, Girne, Gazimağusa, İskele, Güzelyurt and Lefke.
+> **Adapark** — _ada_ ("island" in Turkish) + _park_. EMU campus parking: Electrical & Industrial Engineering lots in Gazimağusa.
 
-A fully interactive React frontend for a drone-monitored, subscription-friendly smart parking network across **North Cyprus (KKTC)**. Frontend-only — all data is mocked locally.
+React + Vite app backed by **Supabase** (auth, profiles, bookings, penalties, transactions, live spot occupancy). Lot layouts are static config in `src/data/parkingConfig.js`; spot status syncs via `spot_status`.
 
 Built with **React 18 + Vite + React Router v6 + Lucide Icons**.
 Visual language inspired by the Starbucks design system (`DESIGN.md`): warm-cream canvas, four-tier brand greens, pill buttons, layered whisper-soft shadows.
@@ -49,9 +49,9 @@ Use the **Driver** tab for the user app or the **Admin** tab for the operator da
 
 | Page | Path | What it does |
 |------|------|--------------|
-| Login | `/login` | Driver / Admin role switch, mock sign-in |
-| Map | `/app` | Live map of garages with drone-numbered pins, sidebar list of nearest parkings, occupancy %, crowd level |
-| Parking detail | `/app/parking/:id` | Virtual lot map (red filled / green empty / gold booked / drone violation hatched), spot picker, hours selector, reservation flow |
+| Login | `/login` | Driver / Admin role switch, Supabase sign-in |
+| Map | `/app` | Live map of garages, sidebar list, occupancy %, crowd level |
+| Parking detail | `/app/parking/:id` | Lot map (empty / taken / booked), spot picker, reservation flow |
 | Payment modal | (within parking) | Subscription / one-time card / wallet / Apple Pay options, locks the spot for everyone else once confirmed |
 | Subscription | `/app/subscription` | 4-tier plans (₺499.99 → ₺2,499.99/mo) with monthly / annual (20% off) billing toggle, included hours, overage rates |
 | Wallet | `/app/wallet` | Balance, top-up, transactions, Stars rewards |
@@ -73,10 +73,8 @@ Use the **Driver** tab for the user app or the **Admin** tab for the operator da
 |------|------|--------------|
 | Overview | `/admin` | KPIs, revenue bar chart, hourly-occupancy line chart, top-revenue ranking, network donut, pricing **suggestions** based on street crowdedness |
 | Parkings | `/admin/parkings` | Master table — rate, occupancy, crowd, suggestion, monthly revenue per garage |
-| Parking edit | `/admin/parkings/:id` | Edit hourly rate / crowd state, **click any spot to cycle status**, see assigned drones + recent violations, one-click apply suggested rate change |
-| Drones | `/admin/drones` | **Drone control center** — fleet panel, live map with drones + parking pins, **D-pad piloting**, **WASD/arrow-key keyboard control**, click anywhere on the map to fly there, dispatch buttons per garage, capture image, record patrol, return-home, manual ↔ auto mode toggle |
-| Auto-detection | (within drones) | Simulate auto-issued penalties from drone patrols (overstay / wrong-spot / no-booking) |
-| Violations | `/admin/violations` | All auto-detected + manual penalties, evidence preview modal (mock drone-frame), pay / dispute / issue manually |
+| Parking edit | `/admin/parkings/:id` | Edit hourly rate / crowd state, click spots to cycle status, clear all spots |
+| Violations | `/admin/violations` | Penalties from Supabase, issue manually by plate |
 | Pricing | `/admin/pricing` | Edit network base rate, per-garage rates, all 4 subscription tiers, all penalty rules |
 | Users | `/admin/users` | Driver directory with subscription tier, lifetime spend, penalty count, suspend/reactivate |
 
@@ -84,11 +82,11 @@ Use the **Driver** tab for the user app or the **Admin** tab for the operator da
 
 ## Architecture
 
-- **State** — single React `Context` (`AppContext`) holds all mock data: parkings, spots, drones, violations, user, tiers, penalty rules. All admin actions mutate the same store the user sees, so booking from one page locks the spot for the other immediately.
+- **State** — `AppContext` loads user data from Supabase; parkings from `parkingConfig.js` with live occupancy from `spot_status` (poll + realtime).
 - **Routing** — `react-router-dom` with two protected layouts: `UserShell` (driver nav) and `AdminShell` (gold-accented operator nav).
 - **Styling** — design tokens in `src/styles/tokens.css`, global utilities in `src/styles/global.css`. Each page composes its own scoped CSS via inline `<style>` blocks for portability.
 - **Charts** — pure-SVG/HTML lightweight `BarChart`, `LineChart`, `Donut` in `src/components/Charts.jsx` (no chart library dependency).
-- **Map** — abstract SVG city map with parking pins, drone markers (rotor animation), "you are here" pulse, and click-to-fly support for drone control.
+- **Map** — live GPS map with parking pins and Google Maps directions.
 
 ## Design system mapping
 

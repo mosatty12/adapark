@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp, haversineMetres } from '../../context/AppContext.jsx'
-import { MapPin, Star, Zap, Search, Crown, AlertCircle, ParkingMeter, Navigation, LocateFixed, MapPinOff } from 'lucide-react'
-import { formatTL } from '../../data/mockData.js'
+import { MapPin, Zap, Search, Crown, AlertCircle, ParkingMeter, Navigation, LocateFixed, MapPinOff } from 'lucide-react'
+import { formatTL } from '../../lib/formatters.js'
+import { spotCounts, effectiveCrowdLevel } from '../../lib/parkingStats.js'
 import RealMap from '../../components/RealMap.jsx'
 
 const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`)
@@ -120,8 +121,14 @@ export default function UserMap() {
     () =>
       [...parkings]
         .filter((p) => p.name.toLowerCase().includes(query.toLowerCase()) || p.area.toLowerCase().includes(query.toLowerCase()))
-        .sort((a, b) => a.distanceKm - b.distanceKm),
-    [parkings, query]
+        .map((p) => ({
+          ...p,
+          distanceM: userLocation && typeof p.lat === 'number' && typeof p.lng === 'number'
+            ? haversineMetres(userLocation.lat, userLocation.lng, p.lat, p.lng)
+            : null,
+        }))
+        .sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity)),
+    [parkings, query, userLocation]
   )
 
   const sub = tiers.find((t) => t.id === user.subscriptionId)
@@ -130,7 +137,7 @@ export default function UserMap() {
   return (
     <div className="page page--wide">
       {/* Greeting + active booking strip */}
-      <div className="row between" style={{ alignItems: 'flex-end', marginBottom: 'var(--space-5)' }}>
+      <div className="map-page-header row between">
         <div>
           <h1 style={{ marginBottom: 6 }}>Good evening, {user.name.split(' ')[0]}</h1>
           <p className="text-soft">
@@ -198,10 +205,10 @@ export default function UserMap() {
 
           <div className="stack gap-3">
             {sorted.map((p) => {
-              const empty = p.layout.spots.filter((s) => s.status === 'empty').length
-              const total = p.layout.spots.length
-              const pct = Math.round((empty / total) * 100)
-              const crowd = CROWD_LABEL[p.crowdLevel]
+              const { vacant, total, pct: occPct } = spotCounts(p)
+              const pctFree = total ? Math.round((vacant / total) * 100) : 0
+              const crowd = CROWD_LABEL[effectiveCrowdLevel(p)]
+              const distLabel = p.distanceM != null ? fmtDist(p.distanceM) : '—'
               return (
                 <Link
                   to={`/app/parking/${p.id}`}
@@ -217,11 +224,11 @@ export default function UserMap() {
                     <div className="row between" style={{ marginBottom: 4 }}>
                       <div style={{ fontWeight: 700, fontSize: '1.5rem', color: 'var(--text-black)' }}>{p.name}</div>
                       <div className="row gap-1 text-soft" style={{ fontSize: '1.25rem' }}>
-                        <Star size={12} fill="currentColor" /> {p.rating.toFixed(1)}
+                        {occPct}% full
                       </div>
                     </div>
                     <div className="text-soft" style={{ fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <MapPin size={12} /> {p.area} · {p.distanceKm.toFixed(1)} km
+                      <MapPin size={12} /> {p.area} · {distLabel}
                     </div>
                     <div className="row between" style={{ marginTop: 8 }}>
                       <div className="row gap-2">
@@ -230,8 +237,8 @@ export default function UserMap() {
                           <span className="pill pill--info"><Zap size={12} /> EV</span>
                         )}
                       </div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 700, color: empty > 5 ? 'var(--green-starbucks)' : empty > 0 ? '#8a6d04' : 'var(--red)' }}>
-                        {empty}/{total} free <span className="text-soft" style={{ fontWeight: 400 }}>({pct}%)</span>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 700, color: vacant > 5 ? 'var(--green-starbucks)' : vacant > 0 ? '#8a6d04' : 'var(--red)' }}>
+                        {vacant}/{total} free <span className="text-soft" style={{ fontWeight: 400 }}>({pctFree}%)</span>
                       </div>
                     </div>
                   </div>
@@ -369,6 +376,12 @@ function ActiveBookingStrip({ bookings }) {
 const mapCss = `
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.map-page-header { align-items: flex-end; margin-bottom: var(--space-5); min-width: 0; }
+@media (max-width: 640px) {
+  .map-page-header { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+  .map-page-header .btn { width: 100%; }
+  .map-page-header p { font-size: 1.3rem; }
+}
 .map-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -385,6 +398,10 @@ const mapCss = `
 }
 @media (max-width: 919px) {
   .map-grid__map { height: 360px; position: static; min-height: 360px; }
+}
+@media (max-width: 640px) {
+  .map-grid__map { height: 280px; min-height: 280px; }
+  .parking-card__thumb { width: 52px; height: 52px; }
 }
 .parking-card {
   background: #fff;

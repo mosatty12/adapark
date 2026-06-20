@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import { Check, Crown, Sparkles, Zap, Users, Star } from 'lucide-react'
-import { formatTL } from '../../data/mockData.js'
+import { formatTL } from '../../lib/formatters.js'
 
 export default function Subscription() {
   const { tiers, user, subscribe, cancelSubscription } = useApp()

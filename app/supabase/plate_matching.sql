@@ -36,6 +36,17 @@ create policy "Admins update flagged detections"
 
 create index if not exists flagged_detections_plate_idx on public.flagged_detections(plate_number);
 
+-- Admin dashboard reads the detection feed (Colab inserts via service_role).
+alter table public.vehicles enable row level security;
+
+drop policy if exists "Admins read vehicles" on public.vehicles;
+create policy "Admins read vehicles"
+  on public.vehicles for select
+  using (public.is_admin());
+
+-- Evidence bucket: must be PUBLIC for browser thumbnails (Storage → evidence → Public).
+-- Colab uploads need the service_role key (anon cannot write with 0 policies).
+-- Public URL pattern:
+--   https://<project-ref>.supabase.co/storage/v1/object/public/evidence/<filename>.jpg
+
 -- NOTE: plate numbers are captured on the profiles table (profiles.plate) at sign-up.
--- Make sure the `vehicles` detection feed table is readable by signed-in users (or admins)
--- via its own RLS policy so the admin dashboard can compare plates.

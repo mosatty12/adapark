@@ -1,20 +1,21 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import {
   PARKINGS as INITIAL_PARKINGS,
-  VIOLATIONS as INITIAL_VIOLATIONS,
   HOURLY_RATE_TL,
   SUBSCRIPTION_TIERS,
   PENALTY_RULES,
-  formatTL,
-} from '../data/mockData.js'
+} from '../data/parkingConfig.js'
+import { formatTL } from '../lib/formatters.js'
 import { supabase, supabaseProjectRef, isSupabaseConfigured, supabaseConfigError } from '../supabase.js'
 import {
   emptyUser,
+  isPlateMissing,
   profileToUser,
   userToProfilePatch,
   bookingFromRow,
   penaltyFromRow,
   transactionFromRow,
+  adminViolationFromRow,
 } from '../lib/profileUtils.js'
 import {
   isWithinLotBounds,
@@ -71,7 +72,7 @@ export function AppProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(true)
 
   const [parkings, setParkings] = useState(INITIAL_PARKINGS)
-  const [violations, setViolations] = useState(INITIAL_VIOLATIONS)
+  const [violations, setViolations] = useState([])
   const [user, setUser] = useState(emptyUser)
   const [hourlyRate, setHourlyRate] = useState(HOURLY_RATE_TL)
   const [tiers, setTiers] = useState(SUBSCRIPTION_TIERS)
@@ -82,6 +83,19 @@ export function AppProvider({ children }) {
     setToast({ msg, type, id: Date.now() })
     window.clearTimeout(showToast._t)
     showToast._t = window.setTimeout(() => setToast(null), 3000)
+  }
+
+  const loadAdminViolations = async () => {
+    const { data, error } = await supabase
+      .from('penalties')
+      .select('*, profiles(plate, name)')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('[penalties]', error)
+      return
+    }
+    setViolations((data || []).map(adminViolationFromRow))
   }
 
   const loadUserData = async (userId) => {
@@ -114,6 +128,8 @@ export function AppProvider({ children }) {
     if (profile.role === 'user') {
       setUser(profileToUser(profile))
       await loadUserData(profile.id)
+    } else if (profile.role === 'admin') {
+      await loadAdminViolations()
     }
   }
 
@@ -137,6 +153,7 @@ export function AppProvider({ children }) {
       if (event === 'SIGNED_OUT') {
         setAuth(null)
         setUser(emptyUser())
+        setViolations([])
       }
     })
 
@@ -211,7 +228,11 @@ export function AppProvider({ children }) {
     }
 
     await applyProfile(profile)
-    return { error: null, role: profile.role }
+    return {
+      error: null,
+      role: profile.role,
+      needsPlate: profile.role === 'user' && isPlateMissing(profile),
+    }
   }
 
   const signUp = async (email, password, name, plate = '') => {
@@ -383,6 +404,10 @@ export function AppProvider({ children }) {
   const bookSpot = async (parkingId, spotId, hours, paymentMethod) => {
     const userId = requireUser()
     if (!userId) return null
+    if (isPlateMissing(user)) {
+      showToast('Add your license plate in Account before booking.', 'error')
+      return null
+    }
     const parking = parkings.find((p) => p.id === parkingId)
     if (!parking) return null
 
@@ -666,12 +691,47 @@ export function AppProvider({ children }) {
     showToast('Dispute submitted for review', 'info')
   }
 
-  const issueViolation = (v) => {
-    const id = 'V-' + Math.floor(1000 + Math.random() * 9000)
-    setViolations((prev) => [{ id, status: 'pending', detectedAt: new Date().toISOString().slice(0, 16).replace('T', ' '), ...v }, ...prev])
-    showToast(`Violation ${id} issued`, 'success')
+  const issueViolation = async (v) => {
+    const plate = v.plate.trim().toUpperCase()
+    const { data: profile, error: findErr } = await supabase
+      .from('profiles')
+      .select('id, plate')
+      .ilike('plate', plate)
+      .eq('role', 'user')
+      .maybeSingle()
+
+    if (findErr || !profile) {
+      showToast(findErr?.message || `No driver found with plate ${v.plate}`, 'error')
+      return
+    }
+
+    const id = 'P-' + Math.floor(1000 + Math.random() * 9000)
+    const { error } = await supabase.from('penalties').insert({
+      id,
+      user_id: profile.id,
+      type: v.type,
+      amount: v.amount,
+      parking_id: v.parkingId,
+      status: 'unpaid',
+    })
+
+    if (error) {
+      showToast(error.message, 'error')
+      return
+    }
+
+    await loadAdminViolations()
+    showToast(`Penalty ${id} issued to ${profile.plate}`, 'success')
   }
-  const updateViolation = (id, patch) => {
+
+  const updateViolation = async (id, patch) => {
+    if (patch.status) {
+      const { error } = await supabase.from('penalties').update({ status: patch.status }).eq('id', id)
+      if (error) {
+        showToast(error.message, 'error')
+        return
+      }
+    }
     setViolations((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)))
   }
 

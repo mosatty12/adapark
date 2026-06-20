@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '../../supabase.js'
 import { useApp } from '../../context/AppContext.jsx'
-import { Check, X, Filter, Plus } from 'lucide-react'
-import { formatTL } from '../../data/mockData.js'
+import { AlertOctagon, Check, X, Filter, Image, Plus } from 'lucide-react'
+import { formatTL } from '../../lib/formatters.js'
 
 const TYPE_LABEL = {
   OVERSTAY: 'Overstay',
@@ -11,18 +12,77 @@ const TYPE_LABEL = {
   EXPIRED_DOC: 'Expired docs',
 }
 
+// Normalize plates so "MGS 312", "mgs312" and "MGS-312" all match.
+const normPlate = (s) => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g, '')
+
 export default function AdminViolations() {
   const { violations, parkings, updateViolation, issueViolation } = useApp()
 
   const [filter, setFilter] = useState('all')
   const [showNew, setShowNew] = useState(false)
+  const [vehicles, setVehicles] = useState([])
+  const [registeredPlates, setRegisteredPlates] = useState(new Set())
+  const [flagged, setFlagged] = useState([])
+
+  useEffect(() => {
+    async function loadAndMatch() {
+      const { data: profiles } = await supabase.from('profiles').select('plate')
+      const plateSet = new Set((profiles || []).map((p) => normPlate(p.plate)).filter(Boolean))
+      setRegisteredPlates(plateSet)
+
+      const { data: detected, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .order('detected_time', { ascending: false })
+
+      if (error) {
+        console.error('[vehicles]', error)
+        return
+      }
+
+      const rows = detected || []
+      setVehicles(rows)
+
+      const toSave = rows
+        .filter((v) => !plateSet.has(normPlate(v.plate_number)))
+        .map((v) => ({
+          vehicle_id: String(v.id),
+          plate_number: v.plate_number,
+          detected_time: v.detected_time != null ? String(v.detected_time) : null,
+          latitude: v.latitude != null ? String(v.latitude) : null,
+          longitude: v.longitude != null ? String(v.longitude) : null,
+          image_url: v.image_url || null,
+          status: 'unregistered',
+        }))
+
+      if (toSave.length > 0) {
+        const { error: saveErr } = await supabase
+          .from('flagged_detections')
+          .upsert(toSave, { onConflict: 'vehicle_id' })
+        if (saveErr) console.error('[flagged_detections]', saveErr)
+      }
+
+      const { data: refreshed, error: flaggedErr } = await supabase
+        .from('flagged_detections')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (flaggedErr) {
+        console.error('[flagged_detections]', flaggedErr)
+        return
+      }
+      setFlagged(refreshed || [])
+    }
+
+    loadAndMatch()
+  }, [])
 
   const filtered = useMemo(() => {
     return violations.filter((v) => filter === 'all' ? true : v.status === filter)
   }, [violations, filter])
 
   const totals = useMemo(() => ({
-    pending: violations.filter((v) => v.status === 'pending').length,
+    unpaid: violations.filter((v) => v.status === 'unpaid').length,
     paid: violations.filter((v) => v.status === 'paid').length,
     disputed: violations.filter((v) => v.status === 'disputed').length,
     revenue: violations.filter((v) => v.status === 'paid').reduce((s, v) => s + v.amount, 0),
@@ -33,7 +93,7 @@ export default function AdminViolations() {
       <div className="row between" style={{ alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
         <div>
           <h1>Violations & penalties</h1>
-          <p className="text-soft">Review and adjudicate parking violations issued by admins.</p>
+          <p className="text-soft">Review plate detections, flagged evidence, and issued penalties.</p>
         </div>
         <button className="btn btn--primary" onClick={() => setShowNew(true)}>
           <Plus size={14}/> Issue manually
@@ -41,16 +101,131 @@ export default function AdminViolations() {
       </div>
 
       <div className="kpi-grid">
-        <Mini label="Pending review" value={totals.pending} tone="var(--red)" />
+        <Mini label="Unpaid" value={totals.unpaid} tone="var(--red)" />
         <Mini label="Paid" value={totals.paid} tone="var(--green-starbucks)" />
         <Mini label="Disputed" value={totals.disputed} tone="#8a6d04" />
         <Mini label="Revenue from penalties" value={formatTL(totals.revenue)} />
       </div>
 
       <div className="card" style={{ padding: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+        <div className="row between" style={{ alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <h2 style={{ marginBottom: 2 }}>Detected vehicles</h2>
+            <p className="text-soft" style={{ fontSize: '1.3rem' }}>
+              Plates from the detection feed, checked against registered drivers.
+            </p>
+          </div>
+          <span className="pill pill--ghost">
+            {registeredPlates.size} registered plate{registeredPlates.size === 1 ? '' : 's'}
+          </span>
+        </div>
+
+        <div className="data-table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Plate</th>
+                <th>Detected time</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vehicles.map((v) => {
+                const isRegistered = registeredPlates.has(normPlate(v.plate_number))
+                return (
+                  <tr key={v.id}>
+                    <td className="mono nowrap">{v.id}</td>
+                    <td className="mono nowrap"><b>{v.plate_number}</b></td>
+                    <td className="text-soft nowrap">{v.detected_time}</td>
+                    <td>{v.latitude}</td>
+                    <td>{v.longitude}</td>
+                    <td className="nowrap">
+                      {isRegistered ? (
+                        <span className="pill pill--ok"><Check size={12}/> Registered</span>
+                      ) : (
+                        <span className="pill pill--bad"><AlertOctagon size={12}/> Unregistered</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+              {vehicles.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-soft" style={{ textAlign: 'center', padding: 24 }}>
+                    No detections yet. Run the Colab script to populate the vehicles feed.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+        <div className="row gap-2" style={{ marginBottom: 12, alignItems: 'center' }}>
+          <Image size={18} color="var(--red)" />
+          <div>
+            <h2 style={{ marginBottom: 2 }}>Flagged evidence — unregistered plates</h2>
+            <p className="text-soft" style={{ fontSize: '1.3rem' }}>
+              Snapshot evidence saved for plates not registered to any driver.
+            </p>
+          </div>
+        </div>
+
+        <div className="data-table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Evidence</th>
+                <th>Plate</th>
+                <th>Detected time</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Captured</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flagged.map((f) => (
+                <tr key={f.id}>
+                  <td>
+                    {f.image_url ? (
+                      <a href={f.image_url} target="_blank" rel="noreferrer">
+                        <img
+                          src={f.image_url}
+                          alt={`Evidence for ${f.plate_number}`}
+                          style={{ width: 84, height: 56, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+                        />
+                      </a>
+                    ) : (
+                      <span className="text-soft">—</span>
+                    )}
+                  </td>
+                  <td className="mono nowrap"><b>{f.plate_number}</b></td>
+                  <td className="text-soft nowrap">{f.detected_time}</td>
+                  <td>{f.latitude}</td>
+                  <td>{f.longitude}</td>
+                  <td className="text-soft nowrap">{(f.created_at || '').slice(0, 16).replace('T', ' ')}</td>
+                </tr>
+              ))}
+              {flagged.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-soft" style={{ textAlign: 'center', padding: 24 }}>
+                    No unregistered plates flagged. All detected vehicles are registered.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
         <div className="row gap-2 row--wrap" style={{ alignItems: 'center' }}>
           <Filter size={16} color="var(--text-black-soft)" />
-          {['all', 'pending', 'paid', 'disputed'].map((f) => (
+          {['all', 'unpaid', 'paid', 'disputed'].map((f) => (
             <button
               key={f}
               className={`btn ${filter === f ? 'btn--primary' : 'btn--dark-outline'}`}
@@ -79,23 +254,21 @@ export default function AdminViolations() {
                 <th>Actions</th>
               </tr>
             </thead>
-
             <tbody>
               {filtered.map((v) => {
                 const p = parkings.find((x) => x.id === v.parkingId)
-
                 return (
                   <tr key={v.id}>
                     <td className="mono nowrap">{v.id}</td>
                     <td className="mono nowrap"><b>{v.plate}</b></td>
                     <td>{p?.name}</td>
-                    <td className="nowrap">{v.spotId}</td>
+                    <td className="nowrap">{v.spotId || '—'}</td>
                     <td className="nowrap">{TYPE_LABEL[v.type] || v.type}</td>
                     <td className="text-soft nowrap">{v.detectedAt}</td>
                     <td className="mono num nowrap"><b>{formatTL(v.amount)}</b></td>
                     <td>
                       <span className={`pill ${v.status === 'paid' ? 'pill--ok' : v.status === 'disputed' ? 'pill--warn' : 'pill--bad'}`}>
-                        {v.status}
+                        {v.status === 'unpaid' ? 'unpaid' : v.status}
                       </span>
                     </td>
                     <td className="nowrap">
@@ -105,7 +278,6 @@ export default function AdminViolations() {
                             <Check size={12}/>
                           </button>
                         )}
-
                         {v.status !== 'disputed' && (
                           <button className="btn btn--ghost" onClick={() => updateViolation(v.id, { status: 'disputed' })} title="Mark disputed">
                             <X size={12}/>
@@ -116,7 +288,6 @@ export default function AdminViolations() {
                   </tr>
                 )
               })}
-
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={9} className="text-soft" style={{ textAlign: 'center', padding: 24 }}>

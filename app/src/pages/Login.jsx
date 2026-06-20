@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
+import { isPlateMissing } from '../lib/profileUtils.js'
 import { isSupabaseConfigured, supabaseConfigError } from '../supabase.js'
 import { Car, Shield, MapPin, Sparkles } from 'lucide-react'
 
 export default function Login() {
-  const { auth, authLoading, signIn, signUp } = useApp()
+  const { auth, authLoading, signIn, signUp, user } = useApp()
   const navigate = useNavigate()
   const [mode, setMode] = useState('signin')
   const [role, setRole] = useState('user')
@@ -19,9 +20,17 @@ export default function Login() {
 
   useEffect(() => {
     if (!authLoading && auth) {
-      navigate(auth.role === 'admin' ? '/admin' : '/app', { replace: true })
+      if (auth.role === 'admin') {
+        navigate('/admin', { replace: true })
+        return
+      }
+      if (isPlateMissing(user)) {
+        navigate('/app/account?setup=plate', { replace: true })
+        return
+      }
+      navigate('/app', { replace: true })
     }
-  }, [auth, authLoading, navigate])
+  }, [auth, authLoading, navigate, user])
 
   const onRoleChange = (r) => {
     setRole(r)
@@ -69,7 +78,15 @@ export default function Login() {
         setError(result.error)
         return
       }
-      navigate(result.role === 'admin' ? '/admin' : '/app', { replace: true })
+      if (result.role === 'admin') {
+        navigate('/admin', { replace: true })
+        return
+      }
+      if (result.needsPlate) {
+        navigate('/app/account?setup=plate', { replace: true })
+        return
+      }
+      navigate('/app', { replace: true })
     } finally {
       setLoading(false)
     }
@@ -93,8 +110,8 @@ export default function Login() {
             <div className="logo-mark">A</div>
             <div className="logo-word">Adapark<span className="logo-word__tld">.kktc</span></div>
           </div>
-          <h1 style={{ color: '#fff', fontSize: '4.4rem', lineHeight: 1.1, fontWeight: 600 }}>
-            Park smart.<br />Park warm.
+          <h1 className="login-hero__title">
+            Park smart<br />Park warm
           </h1>
           <p style={{ color: 'var(--text-white-soft)', fontSize: '1.7rem', marginTop: 'var(--space-3)', maxWidth: 460 }}>
             A smart, subscription-friendly parking network for the EMU campus in
@@ -317,6 +334,12 @@ const loginCss = `
   pointer-events: none;
 }
 .login-hero__inner { max-width: 520px; position: relative; z-index: 2; }
+.login-hero__title {
+  color: #fff;
+  font-size: clamp(2.8rem, 8vw, 4.4rem);
+  line-height: 1.1;
+  font-weight: 600;
+}
 .login-hero__feats {
   margin-top: var(--space-6);
   display: flex; flex-direction: column; gap: var(--space-3);
@@ -385,4 +408,11 @@ const loginCss = `
   color: var(--green-house);
 }
 .login-foot { text-align: center; margin-top: var(--space-4); }
+@media (max-width: 640px) {
+  .login-hero { padding: var(--space-5) var(--space-3); padding-top: max(var(--space-5), env(safe-area-inset-top, 0px)); }
+  .login-form-wrap { padding: var(--space-4) var(--space-3); padding-bottom: max(var(--space-4), env(safe-area-inset-bottom, 0px)); }
+  .login-card { padding: var(--space-4) var(--space-3); }
+  .login-card h1 { font-size: 2rem; }
+  .login-hero__feats { margin-top: var(--space-4); }
+}
 `

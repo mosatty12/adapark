@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext.jsx'
-import { ChevronLeft, MapPin, Star, Car, Zap, Shield, CheckCircle2, X, Navigation } from 'lucide-react'
-import { formatTL } from '../../data/mockData.js'
+import { ChevronLeft, MapPin, Car, Zap, Shield, CheckCircle2, X, Navigation } from 'lucide-react'
+import { formatTL } from '../../lib/formatters.js'
+import { spotCounts, effectiveCrowdLevel } from '../../lib/parkingStats.js'
 import VirtualLot from '../../components/VirtualLot.jsx'
 import RealLot from '../../components/RealLot.jsx'
 import CarTopView from '../../components/CarTopView.jsx'
@@ -37,6 +38,8 @@ export default function ParkingDetail() {
   const sub = tiers.find((t) => t.id === user.subscriptionId)
   const rate = parking.hourlyOverride ?? 50
   const oneTimeCost = hours * rate
+  const { pct: occPct } = spotCounts(parking)
+  const crowd = effectiveCrowdLevel(parking)
 
   const onPick = (spot) => {
     if (spot.status !== 'empty') return
@@ -53,11 +56,11 @@ export default function ParkingDetail() {
         <div className="parking-hero__left">
           <div className="row gap-2" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
             <span className="pill pill--on-dark"><MapPin size={12} /> {parking.area}</span>
-            <span className="pill pill--on-dark"><Star size={12} /> {parking.rating.toFixed(1)}</span>
+            <span className="pill pill--on-dark">{occPct}% occupied</span>
           </div>
-          <h1 style={{ fontSize: '3rem', color: '#fff', lineHeight: 1.15 }}>{parking.name}</h1>
+          <h1 className="parking-hero__title">{parking.name}</h1>
           <p style={{ color: 'var(--text-white-soft)', marginTop: 8, fontSize: '1.4rem' }}>
-            {parking.address} · {parking.distanceKm.toFixed(1)} km away
+            {parking.address}
           </p>
           {typeof parking.lat === 'number' && (
             <a
@@ -79,7 +82,7 @@ export default function ParkingDetail() {
         <div className="parking-hero__right">
           <Big label="Vacancy" value={`${stats.empty}/${stats.total}`} sub={`${Math.round((stats.empty/stats.total)*100)}% free`} />
           <Big label="Rate" value={`₺${rate}/hr`} sub={parking.hourlyOverride !== 50 ? 'dynamic' : 'standard'} />
-          <Big label="Crowd" value={parking.crowdLevel.charAt(0).toUpperCase() + parking.crowdLevel.slice(1)} sub={`${Math.round(parking.streetCrowdedness * 100)}% load`} />
+          <Big label="Crowd" value={crowd.charAt(0).toUpperCase() + crowd.slice(1)} sub={`${occPct}% occupied`} />
         </div>
       </div>
 
@@ -249,6 +252,11 @@ function Legend({ cls, label, taken }) {
 }
 
 const detailCss = `
+.parking-hero__title {
+  font-size: clamp(2.2rem, 5vw, 3rem);
+  color: #fff;
+  line-height: 1.15;
+}
 .parking-hero {
   background: linear-gradient(135deg, var(--green-house) 0%, var(--green-uplift) 100%);
   color: #fff;
@@ -291,6 +299,10 @@ const detailCss = `
 .parking-side { display: flex; flex-direction: column; gap: var(--space-3); }
 .hours-row {
   display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+}
+@media (max-width: 640px) {
+  .parking-grid > .card > .row.between { flex-wrap: wrap; gap: var(--space-2); }
+  .hours-row { grid-template-columns: repeat(3, 1fr); }
 }
 .hours-row__btn {
   border: 1px solid var(--input-border);

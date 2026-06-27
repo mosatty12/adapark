@@ -342,7 +342,7 @@ function LocationBanner({ status, nearest, directionsHref, onRetry, onPark, park
 }
 
 function ActiveBookingStrip({ bookings }) {
-  const { parkings, cancelBooking } = useApp()
+  const { parkings, unparkSession } = useApp()
   return (
     <div style={{ marginBottom: 'var(--space-4)' }}>
       <div className="card" style={{ background: 'var(--green-house)', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
@@ -364,9 +364,9 @@ function ActiveBookingStrip({ bookings }) {
           {bookings.map((b) => (
             <Link key={b.id} to={`/app/parking/${b.parkingId}`} className="btn btn--inverted">View {b.spotId}</Link>
           ))}
-          {bookings.length === 1 && (
-            <button className="btn btn--on-dark-outline" onClick={() => cancelBooking(bookings[0].id)}>Cancel</button>
-          )}
+          {bookings.map((b) => (
+            <button key={`unpark-${b.id}`} className="btn btn--on-dark-outline" onClick={() => unparkSession(b.id)}>Unpark {b.spotId}</button>
+          ))}
         </div>
       </div>
     </div>

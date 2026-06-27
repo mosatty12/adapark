@@ -20,7 +20,7 @@ export default function UserShell() {
       <header className="topnav">
         <div className="topnav__inner">
           <NavLink to="/app" className="topnav__brand">
-            <span className="logo-mark-sm">A</span>
+            <img src="/logo-mark.svg" alt="" className="logo-mark-sm" width="32" height="32" />
             <span>Adapark</span>
           </NavLink>
           <nav className="topnav__links">
@@ -74,10 +74,9 @@ export const topnavCss = `
 }
 .topnav__brand:hover { text-decoration: none; }
 .logo-mark-sm {
-  width: 32px; height: 32px; border-radius: 9px;
-  background: var(--green-accent); color: #fff;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 1.6rem;
+  width: 32px; height: 32px;
+  display: block;
+  flex-shrink: 0;
 }
 .topnav__links {
   display: flex; align-items: center; gap: 2px;

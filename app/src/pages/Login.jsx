@@ -106,9 +106,8 @@ export default function Login() {
     <div className="login-root">
       <div className="login-hero">
         <div className="login-hero__inner">
-          <div className="row gap-2" style={{ marginBottom: 'var(--space-4)', alignItems: 'center' }}>
-            <div className="logo-mark">A</div>
-            <div className="logo-word">Adapark<span className="logo-word__tld">.kktc</span></div>
+          <div className="login-hero__brand" style={{ marginBottom: 'var(--space-4)' }}>
+            <img src="/logo-light.svg" alt="Adapark" className="login-hero__logo" width="240" height="55" />
           </div>
           <h1 className="login-hero__title">
             Park smart<br />Park warm
@@ -351,15 +350,12 @@ const loginCss = `
   display: inline-flex; align-items: center; justify-content: center;
   color: #fff; flex-shrink: 0;
 }
-.logo-mark {
-  width: 40px; height: 40px; border-radius: 12px;
-  background: var(--green-accent); color: #fff;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 2.2rem;
-  letter-spacing: -0.5px;
+.login-hero__brand { display: flex; align-items: center; }
+.login-hero__logo {
+  display: block;
+  width: min(240px, 72vw);
+  height: auto;
 }
-.logo-word { color: #fff; font-weight: 700; font-size: 2rem; letter-spacing: -0.5px; }
-.logo-word__tld { color: var(--gold); font-weight: 600; font-size: 1.4rem; margin-left: 2px; letter-spacing: 0; }
 .login-form-wrap {
   padding: var(--space-7) var(--outer-gutter-lg);
   display: flex; align-items: center; justify-content: center;

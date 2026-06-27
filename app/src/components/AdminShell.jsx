@@ -12,7 +12,7 @@ export default function AdminShell() {
       <header className="topnav admin-topnav">
         <div className="topnav__inner">
           <NavLink to="/admin" className="topnav__brand">
-            <span className="logo-mark-sm" style={{ background: 'var(--gold)', color: 'var(--green-house)' }}>A</span>
+            <img src="/logo-mark-admin.svg" alt="" className="logo-mark-sm" width="32" height="32" />
             <span><span className="brand-text-full">Adapark </span><span style={{ color: 'var(--gold)', fontWeight: 700 }}>Admin</span></span>
           </NavLink>
           <nav className="topnav__links">

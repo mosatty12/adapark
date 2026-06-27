@@ -16,16 +16,8 @@ const MAX_ZOOM = 6
 
 export default function RealMap({ parkings = [], highlightId, onHover, small, userLocation = null, directionsHref = null }) {
   const [zoom, setZoom] = useState(1)
-  const [center, setCenter] = useState(() => {
-    const pts = parkings.filter((p) => typeof p.lat === 'number' && typeof p.lng === 'number')
-    if (pts.length) {
-      return {
-        lat: pts.reduce((s, p) => s + p.lat, 0) / pts.length,
-        lng: pts.reduce((s, p) => s + p.lng, 0) / pts.length,
-      }
-    }
-    return DEFAULT_CENTER
-  })
+  // Keep the original EMU engineering cluster framing; all lots still render as pins.
+  const [center, setCenter] = useState(() => DEFAULT_CENTER)
 
   const bbox = useMemo(() => {
     const spanLat = BASE_SPAN.lat / zoom

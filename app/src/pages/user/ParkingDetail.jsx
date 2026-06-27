@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext.jsx'
-import { ChevronLeft, MapPin, Car, Zap, Shield, CheckCircle2, X, Navigation } from 'lucide-react'
+import { ChevronLeft, MapPin, Car, Zap, Shield, CheckCircle2, X, Navigation, LogOut } from 'lucide-react'
 import { formatTL } from '../../lib/formatters.js'
 import { spotCounts, effectiveCrowdLevel } from '../../lib/parkingStats.js'
 import VirtualLot from '../../components/VirtualLot.jsx'
@@ -11,7 +11,7 @@ import PaymentModal from '../../components/PaymentModal.jsx'
 
 export default function ParkingDetail() {
   const { id } = useParams()
-  const { parkings, user, tiers } = useApp()
+  const { parkings, user, tiers, unparkSession } = useApp()
   const parking = parkings.find((p) => p.id === id)
   const [selectedSpot, setSelectedSpot] = useState(null)
   const [hours, setHours] = useState(2)
@@ -36,6 +36,7 @@ export default function ParkingDetail() {
   }
 
   const sub = tiers.find((t) => t.id === user.subscriptionId)
+  const activeHere = user.bookings.filter((b) => b.active && b.parkingId === id)
   const rate = parking.hourlyOverride ?? 50
   const oneTimeCost = hours * rate
   const { pct: occPct } = spotCounts(parking)
@@ -85,6 +86,28 @@ export default function ParkingDetail() {
           <Big label="Crowd" value={crowd.charAt(0).toUpperCase() + crowd.slice(1)} sub={`${occPct}% occupied`} />
         </div>
       </div>
+
+      {activeHere.length > 0 && (
+        <div className="stack gap-3" style={{ marginBottom: 'var(--space-4)' }}>
+          {activeHere.map((b) => (
+            <div
+              key={b.id}
+              className="card row between"
+              style={{ flexWrap: 'wrap', gap: 'var(--space-3)', background: 'var(--green-house)', color: '#fff' }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '1.6rem' }}>You're parked in spot {b.spotId}</div>
+                <div style={{ color: 'var(--text-white-soft)', fontSize: '1.3rem', marginTop: 4 }}>
+                  {b.hours}h session · started {new Date(b.start).toLocaleString()}
+                </div>
+              </div>
+              <button className="btn btn--inverted" onClick={() => unparkSession(b.id)}>
+                <LogOut size={16} /> Unpark
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="parking-grid">
         <div className="card" style={{ padding: 'var(--space-4)' }}>

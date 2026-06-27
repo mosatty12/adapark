@@ -4,7 +4,7 @@ import { Clock, MapPin } from 'lucide-react'
 import { formatTL } from '../../lib/formatters.js'
 
 export default function History() {
-  const { user, parkings, cancelBooking } = useApp()
+  const { user, parkings, unparkSession } = useApp()
   const active = user.bookings.filter((b) => b.active)
   return (
     <div className="page page--wide">
@@ -29,7 +29,7 @@ export default function History() {
                 </div>
                 <div className="row gap-2">
                   <Link to={`/app/parking/${b.parkingId}`} className="btn btn--outline">View garage</Link>
-                  <button className="btn btn--dark-outline" onClick={() => cancelBooking(b.id)}>Cancel</button>
+                  <button className="btn btn--primary" onClick={() => unparkSession(b.id)}>Unpark</button>
                 </div>
               </div>
             )

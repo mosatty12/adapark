@@ -543,26 +543,42 @@ export function AppProvider({ children }) {
     return { error: null, parking: nearest, spot, booking }
   }
 
-  const cancelBooking = async (bookingId) => {
+  const finishBooking = async (bookingId, { cancelled = false } = {}) => {
     const b = user.bookings.find((x) => x.id === bookingId)
-    if (!b) return
+    if (!b) return false
+
     updateSpot(b.parkingId, b.spotId, { status: 'empty' })
+    const endedAt = new Date().toISOString()
     setUser((u) => ({
       ...u,
       bookings: u.bookings.filter((x) => x.id !== bookingId),
-      history: [{ ...b, active: false, end: new Date().toISOString(), cancelled: true }, ...u.history],
+      history: [{ ...b, active: false, end: endedAt, cancelled }, ...u.history],
     }))
 
     const { error } = await supabase
       .from('bookings')
-      .update({ active: false, cancelled: true, ends_at: new Date().toISOString() })
+      .update({ active: false, cancelled, ends_at: endedAt })
       .eq('id', bookingId)
 
     if (error) {
       showToast(error.message, 'error')
-      return
+      return false
     }
-    showToast('Booking cancelled', 'info')
+    return true
+  }
+
+  const unparkSession = async (bookingId) => {
+    const b = user.bookings.find((x) => x.id === bookingId)
+    if (!b) return
+    const ok = await finishBooking(bookingId, { cancelled: false })
+    if (ok) {
+      showToast(`You left spot ${b.spotId} — lot updated for other drivers`, 'success')
+    }
+  }
+
+  const cancelBooking = async (bookingId) => {
+    const ok = await finishBooking(bookingId, { cancelled: true })
+    if (ok) showToast('Booking cancelled', 'info')
   }
 
   // Updates profiles wallet/stars and (optionally) records a transaction, locally + in DB.
@@ -752,7 +768,7 @@ export function AppProvider({ children }) {
       hourlyRate, setHourlyRate,
       tiers, setTiers, updateTier,
       penaltyRules, setPenaltyRules, updatePenaltyRule,
-      bookSpot, cancelBooking, parkByLocation,
+      bookSpot, cancelBooking, unparkSession, parkByLocation,
       subscribe, cancelSubscription,
       payPenalty, disputePenalty,
       topUp,

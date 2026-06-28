@@ -98,7 +98,7 @@ export function transactionFromRow(row) {
 export function adminViolationFromRow(row) {
   return {
     id: row.id,
-    plate: row.profiles?.plate || '—',
+    plate: row.profiles?.plate || row.plate || '—',
     parkingId: row.parking_id,
     spotId: null,
     type: row.type,
@@ -106,5 +106,6 @@ export function adminViolationFromRow(row) {
     amount: Number(row.amount) || 0,
     status: row.status,
     userId: row.user_id,
+    vehicleId: row.vehicle_id || null,
   }
 }

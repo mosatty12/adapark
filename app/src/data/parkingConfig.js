@@ -76,7 +76,11 @@ export const PENALTY_RULES = [
   { id: 'NO_BOOKING', label: 'Parking without a booking', baseFee: 200, perHour: 30 },
   { id: 'BLOCKING', label: 'Blocking access lane / disabled spot', baseFee: 400, perHour: 0 },
   { id: 'EXPIRED_DOC', label: 'Expired vehicle documents (auto-detect)', baseFee: 100, perHour: 0 },
+  { id: 'UNREGISTERED', label: 'Unregistered vehicle detected on campus', baseFee: 100, perHour: 0 },
 ]
+
+export const UNREGISTERED_PENALTY_TL =
+  PENALTY_RULES.find((r) => r.id === 'UNREGISTERED')?.baseFee ?? 100
 
 const PARKING_SHAPES = {
   emuElectrical: generateLot(6, 6, [

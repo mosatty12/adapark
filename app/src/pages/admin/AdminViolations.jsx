@@ -10,13 +10,14 @@ const TYPE_LABEL = {
   NO_BOOKING: 'No booking',
   BLOCKING: 'Blocking',
   EXPIRED_DOC: 'Expired docs',
+  UNREGISTERED: 'Unregistered vehicle',
 }
 
 // Normalize plates so "MGS 312", "mgs312" and "MGS-312" all match.
 const normPlate = (s) => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g, '')
 
 export default function AdminViolations() {
-  const { violations, parkings, updateViolation, issueViolation } = useApp()
+  const { violations, parkings, updateViolation, issueViolation, issueUnregisteredPenalties } = useApp()
 
   const [filter, setFilter] = useState('all')
   const [showNew, setShowNew] = useState(false)
@@ -60,6 +61,21 @@ export default function AdminViolations() {
           .from('flagged_detections')
           .upsert(toSave, { onConflict: 'vehicle_id' })
         if (saveErr) console.error('[flagged_detections]', saveErr)
+      }
+
+      const unregisteredDetections = rows
+        .filter((v) => !plateSet.has(normPlate(v.plate_number)))
+        .map((v) => ({
+          vehicle_id: String(v.id),
+          plate_number: v.plate_number,
+        }))
+
+      if (unregisteredDetections.length > 0) {
+        const { issued, error: penErr } = await issueUnregisteredPenalties(unregisteredDetections)
+        if (penErr) console.error('[unregistered penalties]', penErr)
+        else if (issued > 0) {
+          console.info(`[unregistered penalties] auto-issued ${issued} × 100 TL`)
+        }
       }
 
       const { data: refreshed, error: flaggedErr } = await supabase
@@ -184,7 +200,7 @@ export default function AdminViolations() {
           <div>
             <h2 style={{ marginBottom: 2 }}>Flagged evidence — unregistered plates</h2>
             <p className="text-soft" style={{ fontSize: '1.3rem' }}>
-              Snapshot evidence saved for plates not registered to any driver.
+              Snapshot evidence saved for plates not registered to any driver. A 100 TL admin penalty is issued automatically per detection (admin record until the plate registers).
             </p>
           </div>
         </div>

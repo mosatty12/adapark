@@ -4,6 +4,7 @@ import {
   HOURLY_RATE_TL,
   SUBSCRIPTION_TIERS,
   PENALTY_RULES,
+  UNREGISTERED_PENALTY_TL,
 } from '../data/parkingConfig.js'
 import { formatTL } from '../lib/formatters.js'
 import { supabase, supabaseProjectRef, isSupabaseConfigured, supabaseConfigError } from '../supabase.js'
@@ -728,6 +729,7 @@ export function AppProvider({ children }) {
       type: v.type,
       amount: v.amount,
       parking_id: v.parkingId,
+      plate: profile.plate,
       status: 'unpaid',
     })
 
@@ -738,6 +740,49 @@ export function AppProvider({ children }) {
 
     await loadAdminViolations()
     showToast(`Penalty ${id} issued to ${profile.plate}`, 'success')
+  }
+
+  /** Admin-only: auto-issue 100 TL for unregistered detections (no user account). */
+  const issueUnregisteredPenalties = async (detections) => {
+    if (!detections?.length) return { issued: 0 }
+
+    const vehicleIds = detections.map((d) => String(d.vehicle_id))
+
+    const { data: existing, error: findErr } = await supabase
+      .from('penalties')
+      .select('vehicle_id')
+      .eq('type', 'UNREGISTERED')
+      .in('vehicle_id', vehicleIds)
+
+    if (findErr) {
+      console.error('[unregistered penalties]', findErr)
+      return { issued: 0, error: findErr }
+    }
+
+    const issuedIds = new Set((existing || []).map((p) => p.vehicle_id))
+    const toInsert = detections
+      .filter((d) => !issuedIds.has(String(d.vehicle_id)))
+      .map((d) => ({
+        id: 'P-' + Math.floor(1000 + Math.random() * 9000),
+        user_id: null,
+        type: 'UNREGISTERED',
+        amount: UNREGISTERED_PENALTY_TL,
+        parking_id: null,
+        plate: (d.plate_number || '').trim().toUpperCase(),
+        vehicle_id: String(d.vehicle_id),
+        status: 'unpaid',
+      }))
+
+    if (toInsert.length === 0) return { issued: 0 }
+
+    const { error } = await supabase.from('penalties').insert(toInsert)
+    if (error) {
+      console.error('[unregistered penalties]', error)
+      return { issued: 0, error }
+    }
+
+    await loadAdminViolations()
+    return { issued: toInsert.length }
   }
 
   const updateViolation = async (id, patch) => {
@@ -763,7 +808,7 @@ export function AppProvider({ children }) {
     () => ({
       auth, authLoading, signIn, signUp, signOut, saveUserProfile,
       parkings, setParkings, updateParking, updateSpot, clearAllSpots,
-      violations, setViolations, issueViolation, updateViolation,
+      violations, setViolations, issueViolation, issueUnregisteredPenalties, updateViolation,
       user, setUser,
       hourlyRate, setHourlyRate,
       tiers, setTiers, updateTier,

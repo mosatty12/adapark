@@ -20,15 +20,25 @@ create table if not exists public.bookings (
 -- ============ Penalties ============
 create table if not exists public.penalties (
   id text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,  -- null = unregistered plate (admin record)
   type text not null,
   amount numeric not null default 0,
   parking_id text,
+  plate text,                        -- stored plate when user_id is null
+  vehicle_id text,                   -- detection feed id; dedup key for UNREGISTERED
   date date not null default current_date,
   status text not null default 'unpaid' check (status in ('unpaid', 'paid', 'disputed')),
   paid_via text,
   created_at timestamptz not null default now()
 );
+
+-- Upgrades for existing deployments (safe to re-run)
+alter table public.penalties alter column user_id drop not null;
+alter table public.penalties add column if not exists plate text;
+alter table public.penalties add column if not exists vehicle_id text;
+create unique index if not exists penalties_vehicle_unregistered_uidx
+  on public.penalties(vehicle_id)
+  where vehicle_id is not null and type = 'UNREGISTERED';
 
 -- ============ Wallet transactions ============
 create table if not exists public.transactions (
